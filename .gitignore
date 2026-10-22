@@ -1,0 +1,21 @@
+# Артефакты сборки и тестов
+build/classes/
+build/dist/
+build/*.jar
+build/*.list
+build/*.txt
+build/run.log
+build/test/classes/
+build/test/*.out
+build/test/*.log
+build/test/*.png
+buildtest/
+run.log
+
+# Личные данные, база, копии, вложения, логотип — не выкладывать ни при каких условиях
+data/
+
+# Плагины, которые кладёт сам пользователь
+modules/*.jar
+
+*.class
