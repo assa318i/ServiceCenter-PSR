@@ -13,8 +13,8 @@ import javax.swing.JOptionPane;
  */
 public final class Privacy {
 
-    /** true — текущий сотрудник не администратор, ПДн в списках скрыты. */
-    static boolean hidden() { return !Session.isAdmin(); }
+    /** true — роли открыт раздел «pii»: без него ФИО, телефон и адрес в списках обезличены. */
+    static boolean hidden() { return !Session.may(Roles.PII); }
 
     static String fio(String s) {
         if (!hidden()) return s;
@@ -39,7 +39,7 @@ public final class Privacy {
     /** Очистка ПДн по заявлению субъекта: копия базы, затем обезличивание карточки и удаление её сканов. */
     static void purge(java.awt.Component owner, Long id) {
         if (id == null) { Warn.show("Выберите заказчика"); return; }
-        if (hidden()) { Warn.show("Обезличивать карточки может только администратор"); return; }
+        if (!Session.isAdmin()) { Warn.show("Обезличивать карточки может только администратор"); return; }
         String who = card(owner, id);
         if (who == null) return;
         int ok = JOptionPane.showConfirmDialog(owner,

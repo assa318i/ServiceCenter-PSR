@@ -54,7 +54,7 @@ public class SettingsPanel extends JPanel {
         y = row(form, g, y, "SMTP порт:", smtpPort);
         y = row(form, g, y, "SMTP логин (ваша почта):", smtpUser);
         y = row(form, g, y, "SMTP пароль:", smtpPass);
-        y = row(form, g, y, "Отправлять акту на адрес:", smtpTo);
+        y = row(form, g, y, "Отправлять акты на почту:", smtpTo);
 
         JPanel copiesRow = new JPanel(new BorderLayout(6, 0));
         copiesRow.setOpaque(false);
@@ -82,52 +82,24 @@ public class SettingsPanel extends JPanel {
         b.setOpaque(false);
         b.add(Theme.on("Сохранить настройки", Theme.YELLOW, e -> save()));
         b.add(Theme.on("Тест SMTP", Theme.BLUE, e -> testSmtp()));
-        b.add(Theme.on("Пользователи (PIN)", Theme.BLUE, e -> manageUsers()));
+        // Чужими PIN-кодами и блокировками распоряжается только администратор:
+        // личный доступ к разделу «Настройки» окна сотрудников не открывает.
+        if (Session.isAdmin()) b.add(Theme.on("Сотрудники, роли и доступ", Theme.BLUE, e -> manageUsers()));
+        if (Session.may(Roles.CALENDAR))
+            b.add(Theme.on("Производственный календарь РФ", Theme.BLUE, e -> calendar()));
         form.add(b, g);
         add(form, BorderLayout.CENTER);
     }
 
-    /** Админ задаёт PIN инженеров и администраторов. */
+
+    /** Календарь с выходными, праздниками и короткими днями — сверить даты отпуска или сверхурочных. */
+    private void calendar() {
+        ProdCalendar.open(javax.swing.SwingUtilities.getWindowAncestor(this));
+    }
+
+    /** Окно сотрудников: PIN, роль, личные права и блокировка на отпуск или отгул. */
     private void manageUsers() {
-        for (;;) {
-            StringBuilder sb = new StringBuilder("Пользователи:\n");
-            java.util.Vector<String> ids = new java.util.Vector<>();
-            try (java.sql.Statement st = Db.get().createStatement();
-                 java.sql.ResultSet rs = st.executeQuery("SELECT id, pin, name, role FROM users")) {
-                while (rs.next()) {
-                    ids.add(rs.getString(1));
-                    sb.append(rs.getString(1)).append("  PIN **" + rs.getString(2))
-                        .append("  ").append(rs.getString(3)).append("  ")
-                        .append("ADMIN".equals(rs.getString(4)) ? "админ" : "инженер").append('\n');
-                }
-            } catch (Exception ex) { Warn.show(ex.getMessage()); return; }
-            String act = (String) javax.swing.JOptionPane.showInputDialog(this, sb.toString()
-                + "\nДействие: add — новый пользователь, del — удалить, пусто — закрыть",
-                "Пользователи", javax.swing.JOptionPane.PLAIN_MESSAGE);
-            if (act == null || act.trim().isEmpty()) return;
-            try {
-                if ("add".equalsIgnoreCase(act.trim())) {
-                    String pin = javax.swing.JOptionPane.showInputDialog(this, "PIN (4–8 цифр):");
-                    if (pin == null || pin.trim().isEmpty()) continue;
-                    String name = javax.swing.JOptionPane.showInputDialog(this, "Имя:");
-                    String role = (String) javax.swing.JOptionPane.showInputDialog(this, "Роль:",
-                        "Роль", javax.swing.JOptionPane.QUESTION_MESSAGE, null,
-                        new String[] { "инженер", "админ" }, "инженер");
-                    if (role == null) continue;
-                    Db.exec("INSERT INTO users(pin,name,role,created) VALUES('" + Db.esc(pin.trim())
-                        + "','" + Db.esc(name == null ? "" : name) + "','"
-                        + ("админ".equals(role) ? "ADMIN" : "ENGINEER") + "','"
-                        + RepairsPanel.stamp() + "')");
-                } else if ("del".equalsIgnoreCase(act.trim())) {
-                    String id = javax.swing.JOptionPane.showInputDialog(this,
-                        "ID пользователя для удаления:");
-                    if (id != null && !id.trim().isEmpty())
-                        Db.exec("DELETE FROM users WHERE id=" + Long.parseLong(id.trim())
-                            + " AND role<>'ADMIN'");
-                    else Warn.show("Администратора удалять нельзя — можно только сменить PIN");
-                }
-            } catch (Exception ex) { Warn.show(ex.getMessage()); }
-        }
+        new UsersDialog(javax.swing.SwingUtilities.getWindowAncestor(this)).setVisible(true);
     }
 
     private JLabel label(String s) {

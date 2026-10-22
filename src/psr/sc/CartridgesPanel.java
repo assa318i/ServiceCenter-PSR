@@ -62,7 +62,10 @@ public class CartridgesPanel extends JPanel {
     }
 
     private void editPart(Long id) {
-        if (!Session.isAdmin()) { Warn.show("Каталог ЗЧ ведёт администратор"); return; }
+        if (!Session.edits(Roles.CARTRIDGES)) {
+            Warn.show("Каталог ЗЧ ведут администратор, руководитель сервисных инженеров и заправщик");
+            return;
+        }
         JTextField article = f("Артикул", id, "article");
         JTextField name = f("Название ЗЧ (чип, вал, фотобарабан, тонер...)", id, "name");
         JTextField grams = f("Тонер на картридж, г (граммовка)", id, "grams_std");
@@ -321,7 +324,7 @@ public class CartridgesPanel extends JPanel {
                 Vector<String> lines = new Vector<>();
                 while (rs.next()) {
                     boolean urgent = rs.getString(4).startsWith("!!!") || "ОПАСНО".equals(rs.getString(4));
-                    lines.add(0, rs.getString(1) + "  [" + ("ADMIN".equals(rs.getString(3)) ? "админ" : "сотр.")
+                    lines.add(0, rs.getString(1) + "  [" + Roles.title(rs.getString(3))
                         + " " + rs.getString(2) + "]: " + rs.getString(4)
                         + (urgent ? "   ⚠ КРАСНЫМ — важно" : ""));
                 }

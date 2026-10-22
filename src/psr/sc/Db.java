@@ -7,7 +7,8 @@ import java.sql.Statement;
 
 /** База SQLite приложения. Файл data/psr.db — его же можно перенести на Android. */
 public final class Db {
-    public static final File DATA_DIR = new File("data");
+    /** Каталог данных; проверки сотрудников и табеля запускают чистую базу через -Dpsr.data. */
+    public static final File DATA_DIR = new File(System.getProperty("psr.data", "data"));
     private static Connection conn;
 
     public static synchronized Connection get() throws Exception {
@@ -43,6 +44,13 @@ public final class Db {
             st.executeUpdate("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "pin TEXT UNIQUE, name TEXT DEFAULT '', role TEXT DEFAULT 'ENGINEER',"
                 + "created TEXT DEFAULT '')");
+            addColumn(st, "users", "allow TEXT DEFAULT ''");
+            addColumn(st, "users", "deny TEXT DEFAULT ''");
+            addColumn(st, "users", "blocked_until TEXT DEFAULT ''");
+            addColumn(st, "users", "block_note TEXT DEFAULT ''");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS timesheet(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "who TEXT DEFAULT '', day TEXT DEFAULT '', t_in TEXT DEFAULT '',"
+                + " t_out TEXT DEFAULT '', note TEXT DEFAULT '', created TEXT DEFAULT '')");
             addColumn(st, "repairs", "serial TEXT DEFAULT ''");
             addColumn(st, "repairs", "completeness TEXT DEFAULT ''");
             addColumn(st, "repairs", "warranty_days INTEGER DEFAULT 0");

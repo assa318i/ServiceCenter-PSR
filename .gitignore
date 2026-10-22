@@ -6,6 +6,9 @@ build/*.list
 build/*.txt
 build/run.log
 build/test/classes/
+build/test/tmp-users/
+build/test/tmp-cal/
+build/scratch/
 build/test/*.out
 build/test/*.log
 build/test/*.png

@@ -41,7 +41,10 @@ public class KitsPanel extends JPanel {
     private void editKit() { editKit(null); }
 
     private void editKit(Long id) {
-        if (!Session.isAdmin()) { Warn.show("Каталоги наборов ведёт администратор"); return; }
+        if (!Session.edits(Roles.KITS)) {
+            Warn.show("Каталоги наборов ведут администратор, руководитель сервисных инженеров и заправщик");
+            return;
+        }
         String name = JOptionPane.showInputDialog(this,
             "Название набора (например «Ремкомплект CPF-LBP6020»):");
         if (name == null || name.trim().isEmpty()) return;
@@ -101,7 +104,7 @@ public class KitsPanel extends JPanel {
     private void deleteKit() {
         Long id = selected();
         if (id == null) { Warn.show("Выберите набор"); return; }
-        if (!Session.isAdmin()) { Warn.show("Наборы удаляет администратор"); return; }
+        if (!Session.edits(Roles.KITS)) { Warn.show("Наборы удаляет администратор, руководитель или заправщик"); return; }
         try {
             Db.exec("DELETE FROM kit_parts WHERE kit_id=" + id);
             Db.exec("DELETE FROM kits WHERE id=" + id);

@@ -40,8 +40,8 @@ public class WarehousePanel extends JPanel {
         tabs.addTab("Склад (остатки)", itemsTab());
         tabs.addTab("Заказы на склад", ordersTab());
         tabs.addTab("Рекомендации по пополнению", recsTab());
-        tabs.addTab("Картриджи", new CartridgesPanel());
-        tabs.addTab("Наборы ЗЧ", new KitsPanel());
+        if (Session.may(Roles.CARTRIDGES)) tabs.addTab("Картриджи", new CartridgesPanel());
+        if (Session.may(Roles.KITS)) tabs.addTab("Наборы ЗЧ", new KitsPanel());
         add(tabs, BorderLayout.CENTER);
         loadAll();
     }
@@ -97,7 +97,11 @@ public class WarehousePanel extends JPanel {
     private void editItem() { editItem(null); }
 
     private void editItem(Long id) {
-        if (!Session.isAdmin()) { Warn.show("Нормы и позиции склада меняет только администратор"); return; }
+        if (!Session.edits(Roles.WAREHOUSE)) {
+            Warn.show("Позиции склада и минимальные нормы меняют администратор и руководитель "
+                + "сервисных инженеров");
+            return;
+        }
         JTextField name = f("Наименование запчасти/компонента", id, "name");
         JTextField unit = f("Единица (шт, комп...)", id, "unit");
         JTextField qty = f("Остаток", id, "qty");
@@ -133,7 +137,7 @@ public class WarehousePanel extends JPanel {
     }
 
     private void deleteItem() {
-        if (!Session.isAdmin()) { Warn.show("Позиции склада удаляет только администратор"); return; }
+        if (!Session.edits(Roles.WAREHOUSE)) { Warn.show("Позиции склада удаляет администратор или руководитель"); return; }
         Long id = selected(items);
         if (id == null) { Warn.show("Выберите позицию"); return; }
         if (JOptionPane.showConfirmDialog(this, "Удалить позицию склада?", "Склад",

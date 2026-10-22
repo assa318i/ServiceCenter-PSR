@@ -42,36 +42,25 @@ public class App extends JFrame {
         setLayout(new BorderLayout());
         getContentPane().setBackground(Theme.GRAY_BG);
 
-        header = Settings.headerBar(16);
+        header = makeHeader();
         add(header, BorderLayout.NORTH);
 
         JPanel nav = new JPanel();
         nav.setBackground(Theme.GRAY_BG);
         nav.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
-        nav.add(navBtn("Заявки на ремонт", REPAIRS, Theme.YELLOW));
-        nav.add(navBtn("Заказчики", CUSTOMERS, Theme.BLUE));
-        nav.add(navBtn("Склад", WAREHOUSE, Theme.BRIGHT_RED));
-        nav.add(navBtn("Отчётность", REPORTS, Color.WHITE));
-        JButton financeBtn = navBtn("Бухгалтерия", FINANCE, Theme.RED);
-        financeBtn.setEnabled(Session.isAdmin());
-        nav.add(financeBtn);
-        JButton settingsBtn = navBtn("Настройки", "settings", Theme.GRAY_PANEL);
-        settingsBtn.setEnabled(Session.isAdmin());
-        nav.add(settingsBtn);
+        navBtn(nav, "Заявки на ремонт", REPAIRS, Theme.YELLOW);
+        navBtn(nav, "Заказчики", CUSTOMERS, Theme.BLUE);
+        navBtn(nav, "Склад", WAREHOUSE, Theme.BRIGHT_RED);
+        navBtn(nav, "Отчётность", REPORTS, Color.WHITE);
+        navBtn(nav, "Бухгалтерия", FINANCE, Theme.RED);
+        navBtn(nav, "Учёт времени", Roles.TIMES, Theme.MINT_TOP);
+        navBtn(nav, "Настройки", "settings", Theme.GRAY_PANEL);
         JButton tasksBtn = Theme.btn("Дела", null);
         tasksBtn.addActionListener(e -> Tasks.show(content, null));
-        nav.add(tasksBtn);
-        JButton maxBtn = Theme.btn("Во весь экран", null);
-        maxBtn.addActionListener(e -> setExtendedState((getExtendedState() & Frame.MAXIMIZED_BOTH) == 0
-            ? Frame.MAXIMIZED_BOTH : Frame.NORMAL));
-        nav.add(maxBtn);
-        JButton trayBtn = Theme.btn("В трей", null);
-        trayBtn.addActionListener(e -> minimizeToTray());
-        nav.add(trayBtn);
-        JLabel who = new JLabel(Session.name + " · " + (Session.isAdmin() ? "администратор" : "инженер"));
-        who.setFont(Theme.font(13));
-        who.setForeground(Session.isAdmin() ? Theme.BLACK : Theme.BLUE);
-        nav.add(who);
+        if (Session.may(Roles.TASKS)) nav.add(tasksBtn);
+        JButton calBtn = Theme.btn("Календарь", null);
+        calBtn.addActionListener(e -> ProdCalendar.open(this));
+        if (Session.may(Roles.CALENDAR)) nav.add(calBtn);
         add(nav, BorderLayout.SOUTH);
 
         content.setBackground(Theme.GRAY_BG);
@@ -80,6 +69,7 @@ public class App extends JFrame {
         content.add(new WarehousePanel(), WAREHOUSE);
         content.add(new ReportsPanel(), REPORTS);
         content.add(new FinancePanel(), FINANCE);
+        content.add(new TimesheetPanel(), Roles.TIMES);
         content.add(new SettingsPanel(this), "settings");
 
         java.util.List<String> pluginErrors = new java.util.ArrayList<>();
@@ -110,7 +100,7 @@ public class App extends JFrame {
         remind.setRepeats(false);
         remind.start();
         initTray();
-        cards.show(content, REPAIRS);
+        cards.show(content, firstCard());
     }
 
     private TrayIcon tray;
@@ -175,9 +165,30 @@ public class App extends JFrame {
         return img;
     }
 
+    /**
+     * Шапка: название организации слева, справа — кто вошёл и служебные кнопки. Ряд разделов
+     * внизу окна забит кнопками модулей, поэтому их держим здесь: иначе в 1280 пикселей
+     * последние кнопки просто не видны.
+     */
+    private JPanel makeHeader() {
+        JPanel h = Settings.headerBar(16);
+        JButton maxBtn = Theme.btn("Во весь экран", null);
+        maxBtn.addActionListener(e -> setExtendedState((getExtendedState() & Frame.MAXIMIZED_BOTH) == 0
+            ? Frame.MAXIMIZED_BOTH : Frame.NORMAL));
+        h.add(maxBtn);
+        JButton trayBtn = Theme.btn("В трей", null);
+        trayBtn.addActionListener(e -> minimizeToTray());
+        h.add(trayBtn);
+        JLabel who = new JLabel(Session.name + " · " + Session.roleTitle());
+        who.setFont(Theme.font(13));
+        who.setForeground(Session.isAdmin() ? Theme.BLACK : Theme.BLUE);
+        h.add(who);
+        return h;
+    }
+
     public void rebuildHeader() {
         remove(header);
-        header = Settings.headerBar(16);
+        header = makeHeader();
         add(header, BorderLayout.NORTH);
         validate();
         repaint();
@@ -192,6 +203,18 @@ public class App extends JFrame {
         JButton b = Theme.btn(text, bg);
         b.addActionListener(e -> show(card));
         return b;
+    }
+
+    /** Кнопка раздела — только если раздел открыт роли; коды карточек совпадают с кодами разделов. */
+    private void navBtn(JPanel nav, String text, String card, Color bg) {
+        if (Session.may(card)) nav.add(navBtn(text, card, bg));
+    }
+
+    /** Первый раздел, доступный роли: у инженера это заявки, у бухгалтера — заказчики. */
+    private String firstCard() {
+        String[] order = { REPAIRS, CUSTOMERS, WAREHOUSE, REPORTS, FINANCE };
+        for (String c : order) if (Session.may(c)) return c;
+        return REPAIRS;
     }
 
     public static void main(String[] args) throws Exception {
