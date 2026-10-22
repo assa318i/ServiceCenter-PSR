@@ -53,8 +53,13 @@ public final class Export {
             + " problem, engineer, price, warranty_days FROM repairs ORDER BY id",
             new String[] { "№", "Открыта", "Статус", "Service Level", "Ожидание до", "Выдан",
             "Оборудование", "Серийный №", "Неисправность", "Инженер", "Цена", "Гарантия дн." });
-        csv("sklad", "SELECT name, unit, qty, min_qty, price FROM items ORDER BY name",
-            new String[] { "Наименование", "Ед.", "Остаток", "Мин. норма", "Цена" });
+        csv("sklad", "SELECT article, name, grp, unit, qty, min_qty, price, barcode FROM items"
+            + " ORDER BY name", new String[] { "Артикул", "Наименование", "Группа", "Ед.",
+            "Остаток", "Мин. норма", "Цена", "Штрихкод" });
+        csv("zhurnal-sklada", "SELECT o.ts, COALESCE(i.name,'позиция удалена'), o.op, o.amount,"
+            + " o.repair_id, o.who, o.note FROM stock_ops o LEFT JOIN items i ON i.id=o.item_id"
+            + " ORDER BY o.id", new String[] { "Дата", "Позиция", "Операция", "Количество",
+            "Заявка", "Кто", "Примечание" });
     }
 
     /** Опись последних дополнительных копий: «\nСкопировано: …\nНедоступны: …» — для окна «Резервная копия». */

@@ -18,6 +18,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -139,7 +140,7 @@ public final class Labels {
         return new int[] { Integer.parseInt(p[0]), Integer.parseInt(p[1]) };
     }
 
-    /** Одна наклейка: штрихкод сверху, код текстом, данные заявки; pct — толщина штрихкода. */
+    /** Одна наклейка на ремонт: штрихкод сверху, код текстом, данные заявки. */
     static BufferedImage one(long id, int wmm, int hmm, int pct) {
         String equip = "", serial = "", cust = "", opened = "";
         try (Statement st = Db.get().createStatement();
@@ -153,6 +154,57 @@ public final class Labels {
             cust = RepairsPanel.nz(rs.getString(4));
         } catch (Exception ex) { Warn.show(ex.getMessage()); return null; }
 
+        List<String> text = new ArrayList<>();
+        text.add("№" + id + "  " + equip);
+        if (!serial.isEmpty()) text.add("S/N: " + serial);
+        if (!cust.isEmpty()) text.add(cust);
+        text.add("Принят " + opened);
+        return render("PSR-R" + id, text, wmm, hmm, pct);
+    }
+
+    /**
+     * Наклейка складской позиции. Код — штрихкод поставщика, если он вбит, иначе наш PSR-P<№>;
+     * сканер на кассе склада читает и то, и другое (см. Stock.find).
+     */
+    static BufferedImage item(long id, int wmm, int hmm, int pct) {
+        String name = "", article = "", barcode = "", unit = "", grp = "";
+        double qty = 0;
+        try (Statement st = Db.get().createStatement();
+             ResultSet rs = st.executeQuery("SELECT name, article, barcode, unit, grp, qty"
+                 + " FROM items WHERE id=" + id)) {
+            if (!rs.next()) return null;
+            name = RepairsPanel.nz(rs.getString(1));
+            article = RepairsPanel.nz(rs.getString(2));
+            barcode = RepairsPanel.nz(rs.getString(3));
+            unit = RepairsPanel.nz(rs.getString(4));
+            grp = RepairsPanel.nz(rs.getString(5));
+            qty = rs.getDouble(6);
+        } catch (Exception ex) { Warn.show(ex.getMessage()); return null; }
+
+        List<String> text = new ArrayList<>();
+        text.add(name);
+        if (!article.isEmpty()) text.add("Артикул: " + article);
+        if (!grp.isEmpty()) text.add("Группа: " + grp);
+        text.add("Остаток: " + WarehousePanel.fmt(qty) + " " + unit);
+        return render(barcode.isEmpty() ? "PSR-P" + id : barcode, text, wmm, hmm, pct);
+    }
+
+    /** Одна наклейка позиции с выбором размера и толщины штрихкода. */
+    static void itemLabel(java.awt.Component parent, long itemId) {
+        JComboBox<String> size = new JComboBox<>(SIZES);
+        JComboBox<String> thick = new JComboBox<>(THICK);
+        thick.setSelectedIndex(1);
+        int ok = JOptionPane.showConfirmDialog(parent, new Object[] {
+            "Размер наклейки:", size, "Толщина штрихкода:", thick },
+            "Этикетка позиции склада №" + itemId, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (ok != JOptionPane.OK_OPTION) return;
+        int[] mm = mm((String) size.getSelectedItem());
+        BufferedImage img = item(itemId, mm[0], mm[1], THICK_PCT[Math.max(0, thick.getSelectedIndex())]);
+        if (img != null) Print.image(img, "Наклейка позиции №" + itemId);
+    }
+
+    /** Общая раскладка: штрихкод в верхней части, под ним код и строки текста по убывающему кеглю. */
+    private static BufferedImage render(String code, List<String> text, int wmm, int hmm, int pct) {
         int w = wmm * PPM, h = hmm * PPM, pad = 2 * PPM;
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = img.createGraphics();
@@ -163,21 +215,17 @@ public final class Labels {
         g.setColor(java.awt.Color.BLACK);
         g.drawRect(0, 0, w - 1, h - 1);
 
-        String code = "PSR-R" + id;
         int barH = (int) (h * 0.38);
         Barcode.draw(g, code, pad, pad, w - pad * 2, barH, pct);
 
+        List<String> lines = new ArrayList<>();
+        lines.add(code);
+        lines.addAll(text);
+        int maxW = w - pad * 2;
         int fs = Math.max(11, Math.min(w / 26, h / 10));
         g.setFont(new Font(Theme.plain.getFamily(), Font.PLAIN, fs));
         FontMetrics fm = g.getFontMetrics();
         int line = fm.getHeight();
-        int maxW = w - pad * 2;
-        List<String> lines = new ArrayList<>();
-        lines.add(code);
-        lines.add(clip("№" + id + "  " + equip, fm, maxW));
-        if (!serial.isEmpty()) lines.add(clip("S/N: " + serial, fm, maxW));
-        if (!cust.isEmpty()) lines.add(clip(cust, fm, maxW));
-        lines.add(clip("Принят " + opened, fm, maxW));
         int y = pad + barH + fs + 2;
         if (y + lines.size() * line > h - 2) {
             g.setFont(new Font(Theme.plain.getFamily(), Font.PLAIN, fs = Math.max(9, fs - 3)));
@@ -186,7 +234,7 @@ public final class Labels {
         }
         for (String s : lines) {
             y += line;
-            g.drawString(s, pad, y);
+            g.drawString(clip(s, fm, maxW), pad, y);
         }
         g.dispose();
         return img;

@@ -66,6 +66,7 @@ public class RepairsPanel extends JPanel {
         tools.add(Theme.on("Наклейки (пакет)", Theme.GRAY_PANEL, e -> Labels.batchDialog(null)));
         tools.add(Theme.on("Найти по штрихкоду", Theme.BLUE, e -> scanFind()));
         tools.add(Theme.on("Набор ЗЧ к заявке", Theme.YELLOW, e -> applyKit()));
+        tools.add(Theme.on("ЗЧ на заявку", Theme.GRAY_PANEL, e -> consumeParts()));
         tools.add(Theme.on("Фото к заявке +", Theme.GRAY_PANEL, e -> addPhoto()));
         tools.add(Theme.on("Открыть фото", Theme.GRAY_PANEL, e -> openPhotos()));
         tools.add(Theme.on("Лента заявки", Theme.GRAY_PANEL, e -> showStream()));
@@ -176,6 +177,13 @@ public class RepairsPanel extends JPanel {
         if (id == null) { Warn.show("Выберите заявку"); return; }
         String equipment = String.valueOf(table.getValueAt(table.getSelectedRow(), 2));
         KitsPanel.applyToRepair(this, id, equipment);
+    }
+
+    /** Запчасть ушла на эту заявку: остаток минусуется и в журнале склада появляется строка. */
+    void consumeParts() {
+        Long id = selectedId();
+        if (id == null) { Warn.show("Выберите заявку"); return; }
+        Stock.consumeFromRepair(this, id);
     }
 
     /** Фотографии (до/после ремонта) хранятся как вложения с repair_id. */

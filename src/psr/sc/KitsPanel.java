@@ -129,8 +129,8 @@ public class KitsPanel extends JPanel {
     }
 
     /**
-     * Применение набора к заявке: список деталей; по кнопке — строка в примечание/историю
-     * и создание заказов склада по совпадающим позициям.
+     * Применение набора к заявке: строка деталей в примечание и в ленту, списание совпавших
+     * позиций склада и заказ на то, чего не хватило.
      */
     public static void applyToRepair(javax.swing.JComponent parent, long repairId, String equipment) {
         Vector<String> names = new Vector<>();
@@ -167,9 +167,51 @@ public class KitsPanel extends JPanel {
             st.executeUpdate("UPDATE repairs SET notes = TRIM(notes || ' | набор: "
                 + Db.esc(parts.toString()) + "'), rev=rev+1 WHERE id=" + repairId);
             Stream.log(repairId, "Применён набор «" + kitName + "»: " + parts);
-        } catch (Exception ex) { Warn.show(ex.getMessage()); }
-        JOptionPane.showMessageDialog(parent, "Набор применён к заявке №" + repairId + ":\n" + parts,
-            "Набор ЗЧ", JOptionPane.PLAIN_MESSAGE);
+        } catch (Exception ex) { Warn.show(ex.getMessage()); return; }
+        String stock = Session.may(Roles.WAREHOUSE) ? takeFromStock(kitId, kitName, repairId)
+            : "Раздел «Склад» вашей роли закрыт: количество не списано, заказы не созданы.";
+        JOptionPane.showMessageDialog(parent, "Набор применён к заявке №" + repairId + ":\n" + parts
+            + "\n\n" + stock, "Набор ЗЧ", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    /**
+     * Что набор делает со складом: позицию, совпавшую по артикулу или названию, списываем на
+     * заявку, нехватку ставим отдельным заказом. Детали, которой нет в каталоге, списать нечем —
+     * она остаётся текстом в примечании к заявке.
+     */
+    static String takeFromStock(long kitId, String kitName, long repairId) {
+        Vector<String[]> want = new Vector<>();
+        try (Statement st = Db.get().createStatement();
+             ResultSet rs = st.executeQuery("SELECT article, name, qty FROM kit_parts WHERE kit_id=" + kitId)) {
+            while (rs.next())
+                want.add(new String[] { RepairsPanel.nz(rs.getString(1)), RepairsPanel.nz(rs.getString(2)),
+                    Stock.num(rs.getDouble(3)) });
+        } catch (Exception ex) { Warn.show(ex.getMessage()); return "Состав набора не прочитан."; }
+        StringBuilder spent = new StringBuilder(), shorted = new StringBuilder(), unknown = new StringBuilder();
+        for (String[] w : want) {
+            double need = RepairForm.parse(w[2]);
+            Long itemId = Stock.matchItem(w[0], w[1]);
+            if (itemId == null) { unknown.append(w[0]).append(' ').append(w[1]).append("; "); continue; }
+            try {
+                double take = Math.min(need, Stock.qty(itemId));
+                if (take > 0) {
+                    Stock.move(itemId, Stock.RASHOD, -take, repairId, "набор «" + kitName + "»");
+                    spent.append(w[1]).append(" — ").append(WarehousePanel.fmt(take)).append("; ");
+                }
+                double lack = need - take;
+                if (lack > 0) {
+                    Db.exec("INSERT INTO stock_orders(item_id,qty,status,created,note) VALUES("
+                        + itemId + "," + Stock.num(lack) + ",'NEW','" + RepairsPanel.stamp()
+                        + "','не хватает для набора «" + Db.esc(kitName) + "», заявка №" + repairId + "')");
+                    shorted.append(w[1]).append(" — заказ на ").append(WarehousePanel.fmt(lack)).append("; ");
+                }
+            } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        }
+        StringBuilder sb = new StringBuilder();
+        if (spent.length() > 0) sb.append("Списано со склада: ").append(spent).append('\n');
+        if (shorted.length() > 0) sb.append("Созданы заказы на нехватку: ").append(shorted).append('\n');
+        if (unknown.length() > 0) sb.append("Нет в каталоге склада (осталось текстом): ").append(unknown);
+        return sb.length() == 0 ? "Склад не изменился." : sb.toString();
     }
 
     private static String firstWord(String s) {

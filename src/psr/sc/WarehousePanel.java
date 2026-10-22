@@ -16,12 +16,17 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
-/** Склад: окно остатков, заказы на склад, рекомендации по пополнению (нормы задаёт администратор). */
+/**
+ * Склад: остатки с артикулом и штрихкодом, заказы на склад, рекомендации по пополнению
+ * (нормы задаёт администратор), журнал движений и импорт каталога из чужого файла.
+ * Остаток меняется только через Stock — тогда журнал объясняет каждую цифру в таблице.
+ */
 public class WarehousePanel extends JPanel {
 
     private final JTable items = new JTable();
     private final JTable orders = new JTable();
     private final JTable recs = new JTable();
+    private final JTable ops = new JTable();
     private final FilterBar bar = new FilterBar("Склад", this::loadAll);
     private final javax.swing.JCheckBox low;
 
@@ -40,6 +45,7 @@ public class WarehousePanel extends JPanel {
         tabs.addTab("Склад (остатки)", itemsTab());
         tabs.addTab("Заказы на склад", ordersTab());
         tabs.addTab("Рекомендации по пополнению", recsTab());
+        tabs.addTab("Журнал склада", opsTab());
         if (Session.may(Roles.CARTRIDGES)) tabs.addTab("Картриджи", new CartridgesPanel());
         if (Session.may(Roles.KITS)) tabs.addTab("Наборы ЗЧ", new KitsPanel());
         add(tabs, BorderLayout.CENTER);
@@ -61,6 +67,9 @@ public class WarehousePanel extends JPanel {
         tools.add(Theme.on("Добавить позицию", Theme.YELLOW, e -> editItem()));
         tools.add(Theme.on("Изменить", Theme.BLUE, e -> editItem(selected(items))));
         tools.add(Theme.on("Удалить", Theme.BRIGHT_RED, e -> deleteItem()));
+        tools.add(Theme.on("Найти по штрихкоду", Theme.BLUE, e -> findByBarcode()));
+        tools.add(Theme.on("Этикетка позиции", Theme.GRAY_PANEL, e -> printItemLabel()));
+        tools.add(Theme.on("Импорт из файла", Theme.YELLOW, e -> WarehouseImport.dialog(this)));
         tools.add(Theme.on("Обновить", Theme.GRAY_PANEL, e -> loadAll()));
         JPanel rows = new JPanel(new BorderLayout());
         rows.setOpaque(false);
@@ -89,6 +98,14 @@ public class WarehousePanel extends JPanel {
         return p;
     }
 
+    private JPanel opsTab() {
+        JPanel tools = new JPanel();
+        tools.add(Theme.on("Обновить", Theme.GRAY_PANEL, e -> loadAll()));
+        tools.add(new JLabel("Каждое движение остатка: приход по заказу, расход на заявку, импорт из файла"
+            + " и ручная правка. Последние 300 строк."));
+        return wrap(ops, tools);
+    }
+
     private Long selected(JTable t) {
         int r = t.getSelectedRow();
         return r < 0 ? null : (Long) t.getValueAt(r, 0);
@@ -103,37 +120,46 @@ public class WarehousePanel extends JPanel {
             return;
         }
         JTextField name = f("Наименование запчасти/компонента", id, "name");
+        JTextField article = f("Артикул поставщика — по нему импорт находит дубль", id, "article");
+        JTextField grp = f("Группа (картриджи, чипы, валы…): фильтр и отчёты", id, "grp");
+        JTextField barcode = f("Штрихкод с наклейки поставщика — поиск сканером", id, "barcode");
         JTextField unit = f("Единица (шт, комп...)", id, "unit");
         JTextField qty = f("Остаток", id, "qty");
         JTextField min = f("МИНИМАЛЬНАЯ НОРМА (администратор задаёт)", id, "min_qty");
         JTextField price = f("Цена, руб.", id, "price");
         min.setForeground(Theme.BRIGHT_RED);
         int ok = JOptionPane.showConfirmDialog(this, new Object[] {
-            "Наименование:", name, "Единица:", unit, "Остаток:", qty,
+            "Наименование:", name, "Артикул:", article, "Группа:", grp, "Штрихкод:", barcode,
+            "Единица:", unit, "Остаток:", qty,
             Theme.danger("Минимальная норма пополнения:"), min, "Цена, руб.:", price },
             id == null ? "Новая позиция склада" : "Позиция склада",
             JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (ok != JOptionPane.OK_OPTION) return;
-        String sql = "name='" + Db.esc(name.getText()) + "', unit='" + Db.esc(unit.getText())
-            + "', qty=" + RepairForm.parse(qty.getText()) + ", min_qty="
-            + RepairForm.parse(min.getText()) + ", price=" + RepairForm.parse(price.getText());
+        // Один список колонок даёт и INSERT, и UPDATE: когда их два, «забыл сохранить поле» —
+        // вопрос времени. Остатка здесь нет: его меняет только Stock, тогда журнал всё объясняет.
+        String[] cols = { "name", "article", "grp", "barcode", "unit", "min_qty", "price" };
+        JTextField[] fs = { name, article, grp, barcode, unit, min, price };
+        StringBuilder vals = new StringBuilder(), set = new StringBuilder();
+        for (int i = 0; i < fs.length; i++) {
+            if (i > 0) { vals.append(','); set.append(", "); }
+            String v = i < 5 ? "'" + Db.esc(fs[i].getText()) + "'"
+                : String.valueOf(RepairForm.parse(fs[i].getText()));
+            vals.append(v);
+            set.append(cols[i]).append('=').append(v);
+        }
         try {
-            if (id == null)
-                Db.exec("INSERT INTO items(name,unit,qty,min_qty,price) VALUES("
-                    + buildValues(name, unit, qty, min, price) + ")");
-            else Db.exec("UPDATE items SET " + sql + " WHERE id=" + id);
+            long itemId;
+            if (id == null) {
+                Db.exec("INSERT INTO items(" + String.join(",", cols) + ") VALUES(" + vals + ")");
+                itemId = Stock.lastId();
+            } else {
+                itemId = id;
+                Db.exec("UPDATE items SET " + set + " WHERE id=" + itemId);
+            }
+            Stock.correct(itemId, RepairForm.parse(qty.getText()),
+                id == null ? "создание позиции" : "правка в окне склада");
         } catch (Exception ex) { Warn.show("Проверьте числа в полях Остаток/Норма/Цена.\n" + ex.getMessage()); }
         loadAll();
-    }
-
-    private String buildValues(JTextField... fs) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < fs.length; i++) {
-            if (i > 0) sb.append(',');
-            String v = fs[i].getText();
-            sb.append(i == 0 || i == 1 ? "'" + Db.esc(v) + "'" : String.valueOf(RepairForm.parse(v)));
-        }
-        return sb.toString();
     }
 
     private void deleteItem() {
@@ -189,7 +215,7 @@ public class WarehousePanel extends JPanel {
             long itemId = rs.getLong(1);
             double qty = rs.getDouble(2);
             rs.close();
-            st.executeUpdate("UPDATE items SET qty = qty + " + qty + " WHERE id=" + itemId);
+            Stock.move(itemId, Stock.PRIHOD, qty, 0, "заказ №" + id);
             st.executeUpdate("UPDATE stock_orders SET status='RECEIVED' WHERE id=" + id);
         } catch (Exception ex) { Warn.show(ex.getMessage()); }
         loadAll();
@@ -228,17 +254,23 @@ public class WarehousePanel extends JPanel {
 
     void loadAll() {
         try (Statement st = Db.get().createStatement()) {
-            ResultSet rs = st.executeQuery("SELECT id,name,unit,qty,min_qty,price FROM items ORDER BY name");
+            ResultSet rs = st.executeQuery("SELECT id,name,unit,qty,min_qty,price,article,grp,last_op"
+                + " FROM items ORDER BY name");
             Vector<Vector<Object>> rows = new Vector<>();
             while (rs.next()) {
-                if (!bar.match(rs.getString(2), rs.getString(3))) continue;
+                if (!bar.match(rs.getString(2), rs.getString(3), rs.getString(7), rs.getString(8))) continue;
                 if (bar.on(low) && rs.getDouble(4) > rs.getDouble(5)) continue;
-                Vector<Object> r = new Vector<>(java.util.Arrays.asList(rs.getLong(1),
-                    rs.getString(2), rs.getString(3), rs.getDouble(4), rs.getDouble(5), rs.getDouble(6)));
-                rows.add(r);
+                rows.add(new Vector<>(java.util.Arrays.asList(rs.getLong(1), rs.getString(2),
+                    RepairsPanel.nz(rs.getString(7)), RepairsPanel.nz(rs.getString(8)), rs.getString(3),
+                    fmt(rs.getDouble(4)), fmt(rs.getDouble(5)), fmt(rs.getDouble(6)),
+                    RepairsPanel.nz(rs.getString(9)))));
             }
-            items.setModel(model(rows, new String[] {
-                "№", "Наименование", "Ед.", "Остаток", "Мин. норма", "Цена, руб." }));
+            items.setModel(model(rows, new String[] { "№", "Наименование", "Артикул", "Группа",
+                "Ед.", "Остаток", "Мин. норма", "Цена, руб.", "Обновлена" }));
+            // Девять колонок по умолчанию делят ширину поровну: артикул и группа тонют,
+            // а заголовок даты обрезается.
+            int[] w = { 40, 260, 130, 130, 44, 80, 90, 90, 120 };
+            for (int i = 0; i < w.length; i++) items.getColumnModel().getColumn(i).setPreferredWidth(w[i]);
         } catch (Exception ex) { Warn.show(ex.getMessage()); }
 
         try (Statement st = Db.get().createStatement();
@@ -266,6 +298,46 @@ public class WarehousePanel extends JPanel {
                 "№", "Позиция", "Остаток", "Мин. норма", "Рекомендуется заказать" }));
             recs.getColumnModel().getColumn(4).setCellRenderer(redCell());
         } catch (Exception ex) { Warn.show(ex.getMessage()); }
+
+        try (Statement st = Db.get().createStatement();
+             ResultSet rs = st.executeQuery("SELECT o.ts, COALESCE(i.name,'позиция удалена'),"
+                 + " o.op, o.amount, o.repair_id, o.who, o.note FROM stock_ops o"
+                 + " LEFT JOIN items i ON i.id=o.item_id ORDER BY o.id DESC LIMIT 300")) {
+            Vector<Vector<Object>> rows = new Vector<>();
+            while (rs.next()) {
+                double a = rs.getDouble(4);
+                long rep = rs.getLong(5);
+                rows.add(new Vector<>(java.util.Arrays.asList(RepairsPanel.nz(rs.getString(1)),
+                    rs.getString(2), Stock.ru(RepairsPanel.nz(rs.getString(3))),
+                    (a > 0 ? "+" : "") + fmt(a), rep == 0 ? "" : "№" + rep,
+                    RepairsPanel.nz(rs.getString(6)), RepairsPanel.nz(rs.getString(7)))));
+            }
+            ops.setModel(model(rows, new String[] { "Дата", "Позиция", "Операция", "Количество",
+                "Заявка", "Кто", "Примечание" }));
+        } catch (Exception ex) { Warn.show(ex.getMessage()); }
+    }
+
+    /** Позиция по коду со сканера: наша наклейка PSR-P№, штрихкод или артикул поставщика. */
+    private void findByBarcode() {
+        Object s = JOptionPane.showInputDialog(this,
+            "Отсканируйте наклейку или введите штрихкод/артикул:", "Поиск позиции по коду",
+            JOptionPane.QUESTION_MESSAGE);
+        if (s == null) return;
+        Long id = Stock.find(String.valueOf(s));
+        if (id == null) { Warn.show("Позиция с таким кодом на складе не найдена"); return; }
+        for (int i = 0; i < items.getRowCount(); i++)
+            if (id.equals(items.getValueAt(i, 0))) {
+                items.setRowSelectionInterval(i, i);
+                items.scrollRectToVisible(items.getCellRect(i, 0, true));
+                return;
+            }
+        Warn.show("Позиция №" + id + " есть, но её прячет фильтр");
+    }
+
+    private void printItemLabel() {
+        Long id = selected(items);
+        if (id == null) { Warn.show("Выберите позицию"); return; }
+        Labels.itemLabel(this, id);
     }
 
     private DefaultTableModel model(Vector<Vector<Object>> rows, String[] cols) {

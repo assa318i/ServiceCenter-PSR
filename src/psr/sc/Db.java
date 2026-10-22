@@ -41,6 +41,16 @@ public final class Db {
                 + "name TEXT, unit TEXT DEFAULT 'шт', qty REAL DEFAULT 0, min_qty REAL DEFAULT 0, price REAL DEFAULT 0)");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS stock_orders(id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "item_id INTEGER, qty REAL, status TEXT DEFAULT 'NEW', created TEXT, note TEXT DEFAULT '')");
+            // Артикул, группа и штрихкод — чтобы позицию можно было найти сканером, отфильтровать
+            // по группе и не завести дубль при импорте из 1С. last_op — когда позиция двигалась.
+            addColumn(st, "items", "article TEXT DEFAULT ''");
+            addColumn(st, "items", "grp TEXT DEFAULT ''");
+            addColumn(st, "items", "barcode TEXT DEFAULT ''");
+            addColumn(st, "items", "last_op TEXT DEFAULT ''");
+            // Журнал приходов-расходов по обычным позициям (у картриджей свой cart_ops).
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS stock_ops(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "ts TEXT, item_id INTEGER, op TEXT, amount REAL DEFAULT 0,"
+                + "repair_id INTEGER DEFAULT 0, who TEXT DEFAULT '', note TEXT DEFAULT '')");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "pin TEXT UNIQUE, name TEXT DEFAULT '', role TEXT DEFAULT 'ENGINEER',"
                 + "created TEXT DEFAULT '')");
