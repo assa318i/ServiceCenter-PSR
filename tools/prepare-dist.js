@@ -27,13 +27,15 @@ const icon = path.join(ROOT, 'installer', 'icon.ico');
 if (fs.existsSync(icon)) copy(icon, path.join(DIST, 'icon.ico'));
 copy(path.join(ROOT, 'installer', 'icon.png'), path.join(DIST, 'icon.png'));
 
-for (const pair of [['docs/ДОКУМЕНТАЦИЯ.md', 'doc.html'], ['docs/ЧЕК-ЛИСТ-ЗНАКОМСТВА.md', 'chek-list.html']]) {
+for (const pair of [['docs/ДОКУМЕНТАЦИЯ.md', 'doc.html'], ['docs/ЧЕК-ЛИСТ-ЗНАКОМСТВА.md', 'chek-list.html'],
+    ['docs/ИСТОРИЯ-ВЕРСИЙ.md', 'versions.html']]) {
     cp.execFileSync(process.execPath,
         [path.join(ROOT, 'tools', 'md2html.js'), path.join(ROOT, pair[0]), path.join(DOCS, pair[1])],
         { stdio: 'inherit' });
     fs.unlinkSync(path.join(DOCS, pair[1].replace('.html', '') + '-anchors.txt'));
 }
 copy(path.join(ROOT, 'docs', 'ЧЕК-ЛИСТ-ЗНАКОМСТВА.md'), path.join(DOCS, 'chek-list.md'));
+copy(path.join(ROOT, 'docs', 'ИСТОРИЯ-ВЕРСИЙ.md'), path.join(DOCS, 'versions.md'));
 copy(path.join(ROOT, 'README.md'), path.join(DOCS, 'README.md'));
 copy(path.join(ROOT, 'LICENSE'), path.join(DOCS, 'LICENSE'));
 

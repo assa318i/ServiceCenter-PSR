@@ -14,9 +14,9 @@
 ; ============================================================================
 
 #define MyAppName "Сервис центр от PSR"
-; Версия: по умолчанию 1.0.0, можно передать /DMyAppVersion=1.2.0 (make-installer.bat берёт её из PSR_VERSION).
+; Версия: по умолчанию 1.0.1, можно передать /DMyAppVersion=1.2.0 (make-installer.bat берёт её из PSR_VERSION).
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.0.1"
 #endif
 #define MyAppPublisher "PSR"
 #define Dist "..\build\dist"
@@ -102,6 +102,7 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; \
 Name: "{group}\Чек-лист знакомства (браузер)"; Filename: "{app}\docs\chek-list.html"; \
     Components: docs
 Name: "{group}\Документация целиком (браузер)"; Filename: "{app}\docs\doc.html"; Components: docs
+Name: "{group}\История версий (браузер)"; Filename: "{app}\docs\versions.html"; Components: docs
 Name: "{group}\Папка с базой данных"; Filename: "{app}\data"
 Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; \
