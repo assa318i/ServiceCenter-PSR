@@ -35,5 +35,6 @@ for (const pair of [['docs/ДОКУМЕНТАЦИЯ.md', 'doc.html'], ['docs/Ч�
 }
 copy(path.join(ROOT, 'docs', 'ЧЕК-ЛИСТ-ЗНАКОМСТВА.md'), path.join(DOCS, 'chek-list.md'));
 copy(path.join(ROOT, 'README.md'), path.join(DOCS, 'README.md'));
+copy(path.join(ROOT, 'LICENSE'), path.join(DOCS, 'LICENSE'));
 
 console.log('Дистрибутив готов: ' + DIST);
