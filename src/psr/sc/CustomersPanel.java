@@ -44,6 +44,7 @@ public class CustomersPanel extends JPanel {
         tools.add(sort);
         tools.add(Theme.on("Новый заказчик", Theme.YELLOW, e -> open(null)));
         tools.add(Theme.on("Открыть карточку", Theme.BLUE, e -> openSelected()));
+        tools.add(Theme.on("Импорт из файла", Theme.YELLOW, e -> CustomerImport.dialog(this)));
         tools.add(Theme.on("Обновить", Theme.GRAY_PANEL, e -> load()));
         if (Session.isAdmin())
             tools.add(Theme.on("Очистка ПДн", Theme.BRIGHT_RED, e -> Privacy.purge(this, selectedId())));

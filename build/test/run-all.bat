@@ -7,7 +7,7 @@ javac --release 8 -encoding UTF-8 -cp "%CP%" -d build\test\classes ^
   build\test\FilterE2E.java build\test\PresetE2E.java build\test\TasksE2E.java ^
   build\test\StreamE2E.java build\test\ConflictE2E.java build\test\PagTest.java ^
   build\test\FilterTest.java build\test\RolesCheck.java build\test\FormatsCheck.java ^
-  build\test\UsersCheck.java build\test\CalendarCheck.java build\test\WarehouseCheck.java ^
+  build\test\UsersCheck.java build\test\CalendarCheck.java build\test\WarehouseCheck.java build\test\ImportCheck.java ^
   || (echo BUILD FAIL > build\test\all.out & exit /b 1)
 if exist build\test\all.out del build\test\all.out
 for %%T in (psr.sc.FilterE2E psr.sc.PresetE2E psr.sc.TasksE2E psr.sc.StreamE2E psr.sc.ConflictE2E psr.sc.PagTest FilterTest psr.sc.RolesCheck FormatsCheck) do (
@@ -23,6 +23,9 @@ java -Dpsr.data=build\test\tmp-cal -cp "%CP%" psr.sc.CalendarCheck >> build\test
 rem Склад — тоже на своей базе: проверки двигают остатки и пишут журнал.
 echo ===== psr.sc.WarehouseCheck >> build\test\all.out
 java -Dpsr.data=build\test\tmp-wh -cp "%CP%" psr.sc.WarehouseCheck >> build\test\all.out 2>&1 || echo FAILED WH >> build\test\all.out
+rem Импорт справочников — на своей базе: грузит чужие CSV и свои выгрузки.
+echo ===== psr.sc.ImportCheck >> build\test\all.out
+java -Dpsr.data=build\test\tmp-import -cp "%CP%" psr.sc.ImportCheck >> build\test\all.out 2>&1 || echo FAILED IMP >> build\test\all.out
 rem find.exe с путём: в PATH может лежать GNU find из git, а для него "/c" — это начало
 rem обхода всего диска C. Маркер FAILED тоже ASCII: в файл попадают байты разной кодировки.
 %SystemRoot%\System32\find.exe /c "FAIL" build\test\all.out

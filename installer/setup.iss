@@ -102,6 +102,7 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; \
 Name: "{group}\Чек-лист знакомства (браузер)"; Filename: "{app}\docs\chek-list.html"; \
     Components: docs
 Name: "{group}\Документация целиком (браузер)"; Filename: "{app}\docs\doc.html"; Components: docs
+Name: "{group}\Импорт и экспорт списков (браузер)"; Filename: "{app}\docs\import.html"; Components: docs
 Name: "{group}\История версий (браузер)"; Filename: "{app}\docs\versions.html"; Components: docs
 Name: "{group}\Папка с базой данных"; Filename: "{app}\data"
 Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
@@ -116,6 +117,8 @@ Filename: "{sys}\icacls.exe"; Parameters: """{app}\data"" /grant ""*S-1-5-32-545
 Filename: "{app}\docs\chek-list.html"; Description: "Открыть ЧЕК-ЛИСТ знакомства с программой (в браузере)"; \
     Components: docs; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\docs\doc.html"; Description: "Открыть ДОКУМЕНТАЦИЮ целиком (в браузере)"; \
+    Components: docs; Flags: postinstall shellexec skipifsilent
+Filename: "{app}\docs\import.html"; Description: "Открыть инструкцию по импорту и экспорту (в браузере)"; \
     Components: docs; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\run.bat"; WorkingDir: "{app}"; Description: "Запустить {#MyAppName}"; \
     Flags: postinstall skipifsilent runhidden

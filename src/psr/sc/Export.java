@@ -56,6 +56,11 @@ public final class Export {
         csv("sklad", "SELECT article, name, grp, unit, qty, min_qty, price, barcode FROM items"
             + " ORDER BY name", new String[] { "Артикул", "Наименование", "Группа", "Ед.",
             "Остаток", "Мин. норма", "Цена", "Штрихкод" });
+        // Тот же порядок колонок, что принимает импорт каталога: файл выгружается и грузится обратно.
+        csv("kartridzhi", "SELECT article, name, grams_std, toner_g, qty_refill, qty_store,"
+            + " min_qty, price FROM cart_parts ORDER BY name", new String[] { "Артикул", "Название ЗЧ",
+            "Грамовка, г", "Тонер на складе, г", "Склад заправщика, шт",
+            "Склад кладовщика, шт", "Мин. норма", "Цена, руб." });
         csv("zhurnal-sklada", "SELECT o.ts, COALESCE(i.name,'позиция удалена'), o.op, o.amount,"
             + " o.repair_id, o.who, o.note FROM stock_ops o LEFT JOIN items i ON i.id=o.item_id"
             + " ORDER BY o.id", new String[] { "Дата", "Позиция", "Операция", "Количество",

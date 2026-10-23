@@ -58,6 +58,7 @@ public class RepairsPanel extends JPanel {
         tools.add(Box.createHorizontalStrut(12));
         tools.add(Theme.on("Новая заявка", Theme.YELLOW, e -> RepairForm.show(app, null, this)));
         tools.add(Theme.on("Изменить", Theme.BLUE, e -> RepairForm.show(app, selectedId(), this)));
+        tools.add(Theme.on("Импорт из файла", Theme.GRAY_PANEL, e -> RepairImport.dialog(this)));
         tools.add(Theme.on("Статус", Theme.GRAY_PANEL, e -> changeStatus()));
         tools.add(Theme.on("Service Level", Theme.YELLOW, e -> setSla()));
         tools.add(Theme.on("Квитанция о приёме", Theme.BLUE, e -> printReceipt()));
@@ -74,8 +75,9 @@ public class RepairsPanel extends JPanel {
         tools.add(Theme.on("Обновить", Theme.BLUE, e -> load()));
         mine = bar.flag("назначено мне");
         late = bar.flag("просроченные");
-        // Кнопок больше, чем помещается в строку: FlowLayout переносит их, а высоту ряда берём из запасных 3 строк.
-        tools.setPreferredSize(new java.awt.Dimension(0, 115));
+        // Кнопок больше, чем помещается в строку: FlowLayout переносит их, а высоту ряда берём
+        // с запасом в четыре строки — на узком окне часть кнопок уходит ниже и не должна обрезаться.
+        tools.setPreferredSize(new java.awt.Dimension(0, 150));
         JPanel north = new JPanel(new BorderLayout());
         north.setOpaque(false);
         north.add(head, BorderLayout.NORTH);

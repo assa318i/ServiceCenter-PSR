@@ -52,6 +52,7 @@ public class CartridgesPanel extends JPanel {
         JPanel tools = new JPanel();
         tools.add(Theme.on("Добавить ЗЧ", Theme.YELLOW, e -> editPart(null)));
         tools.add(Theme.on("Изменить", Theme.BLUE, e -> editPart(selected(parts))));
+        tools.add(Theme.on("Импорт из файла", Theme.GRAY_PANEL, e -> CartPartImport.dialog(this)));
         tools.add(Theme.on("Обновить", Theme.GRAY_PANEL, e -> load()));
         return wrap(parts, tools);
     }

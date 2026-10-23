@@ -90,7 +90,7 @@ public class ReportsPanel extends JPanel {
             Export.allCsv();
             JOptionPane.showMessageDialog(this,
                 "CSV готовы в " + new java.io.File(Db.DATA_DIR, "export").getAbsolutePath()
-                + ":\nzakazchiki.csv, remonty.csv, sklad.csv, zhurnal-sklada.csv",
+                + ":\nzakazchiki.csv, remonty.csv, sklad.csv, zhurnal-sklada.csv, kartridzhi.csv",
                 "Экспорт CSV", JOptionPane.PLAIN_MESSAGE);
         } catch (Exception ex) { Warn.show(ex.getMessage()); }
     }
