@@ -335,7 +335,8 @@ public class RepairsPanel extends JPanel {
 
     /** Кнопка с выпадающим меню: группирует связанные действия, чтобы не загромождать панель. */
     private javax.swing.JButton menuBtn(String title, String[] labels, Runnable[] actions) {
-        javax.swing.JButton btn = Theme.btn(title + " ▾", Theme.GRAY_PANEL);
+        javax.swing.JButton btn = Theme.btn(title, Theme.GRAY_PANEL);
+        btn.setIcon(downTriangle());
         javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
         for (int i = 0; i < labels.length; i++) {
             javax.swing.JMenuItem item = new javax.swing.JMenuItem(labels[i]);
@@ -345,5 +346,22 @@ public class RepairsPanel extends JPanel {
         }
         btn.addActionListener(e -> menu.show(btn, 0, btn.getHeight()));
         return btn;
+    }
+
+    /** Треугольник вместо символа «▾»: в Montserrat этого глифа нет, он рисуется пустым квадратом. */
+    private static javax.swing.Icon downTriangle() {
+        return new javax.swing.Icon() {
+            @Override public int getIconWidth() { return 9; }
+            @Override public int getIconHeight() { return 6; }
+            @Override public void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Theme.BLACK);
+                g2.fill(new java.awt.Polygon(new int[] { x, x + 8, x + 4 },
+                    new int[] { y, y, y + 5 }, 3));
+                g2.dispose();
+            }
+        };
     }
 }
