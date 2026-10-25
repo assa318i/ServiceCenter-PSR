@@ -80,7 +80,7 @@ public final class Settings {
     /** Подгонка размера логотипа под высоту шапки. */
     private static java.awt.Image getLogoPath(File f) {
         ImageIcon src = new ImageIcon(f.getPath());
-        int h = 54;
+        int h = 40;
         int w = src.getIconWidth() > 0 ? src.getIconWidth() * h / src.getIconHeight() : h;
         return src.getImage().getScaledInstance(w, h, java.awt.Image.SCALE_SMOOTH);
     }

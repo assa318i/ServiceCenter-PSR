@@ -62,13 +62,7 @@ public class TimesheetPanel extends JPanel {
         tools.add(Theme.on("Обновить", Theme.BLUE, e -> { fillPeople(); load(); }));
         tools.add(Theme.on("Календарь РФ", Theme.GRAY_PANEL,
             e -> ProdCalendar.open(javax.swing.SwingUtilities.getWindowAncestor(this))));
-        // Шапка — FlowLayout: строку фильтров кладём отдельным рядом, иначе при переносе
-        // она обрезается (вторую строку FlowLayout в preferredSize не учитывает).
-        JPanel head = new JPanel(new BorderLayout());
-        head.setOpaque(false);
-        head.add(Settings.headerBar(12), BorderLayout.NORTH);
-        head.add(tools, BorderLayout.SOUTH);
-        add(head, BorderLayout.NORTH);
+        add(tools, BorderLayout.NORTH);
 
         totals.setFont(Theme.fontB(15));
         totals.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));

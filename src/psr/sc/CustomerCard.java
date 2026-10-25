@@ -42,7 +42,7 @@ public class CustomerCard extends JFrame {
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         getContentPane().setBackground(Theme.GRAY_BG);
         setLayout(new BorderLayout());
-        add(Settings.headerBar(16), BorderLayout.NORTH);
+        add(Settings.headerBar(14), BorderLayout.NORTH);
 
         JPanel form = new JPanel(new GridBagLayout());
         form.setBackground(Theme.GRAY_BG);

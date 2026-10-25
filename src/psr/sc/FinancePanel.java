@@ -35,7 +35,6 @@ public class FinancePanel extends JPanel {
         setBackground(Theme.GRAY_BG);
         setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
-        JPanel head = Settings.headerBar(12);
         JPanel tools = new JPanel();
         tools.setOpaque(false);
         tools.add(new JLabel("Период: "));
@@ -46,8 +45,7 @@ public class FinancePanel extends JPanel {
         tools.add(Theme.on("Добавить", Theme.YELLOW, e -> addPayment()));
         tools.add(Theme.on("Удалить", Theme.BRIGHT_RED, e -> deletePayment()));
         tools.add(Theme.on("Обновить", Theme.BLUE, e -> load()));
-        head.add(tools, BorderLayout.SOUTH);
-        add(head, BorderLayout.NORTH);
+        add(tools, BorderLayout.NORTH);
 
         totals.setFont(Theme.fontB(16));
         totals.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));

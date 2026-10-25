@@ -36,9 +36,6 @@ public class WarehousePanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
         low = bar.flag("ниже минимума");
 
-        JPanel head = Settings.headerBar(12);
-        add(head, BorderLayout.NORTH);
-
         JTabbedPane tabs = new JTabbedPane();
         tabs.setFont(Theme.fontB(15));
         tabs.setBackground(Theme.GRAY_BG);

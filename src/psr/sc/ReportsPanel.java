@@ -28,7 +28,6 @@ public class ReportsPanel extends JPanel {
         setBackground(Theme.GRAY_BG);
         setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
-        JPanel head = Settings.headerBar(12);
         JPanel tools = new JPanel();
         tools.setOpaque(false);
         tools.add(new JLabel("Период отчётности: "));
@@ -50,8 +49,7 @@ public class ReportsPanel extends JPanel {
         tools.add(Theme.on("Выгрузка XML (ЭДО/1С)", Theme.BLUE, e -> toXml()));
         tools.add(Theme.on("Резервная копия базы", Theme.GRAY_PANEL, e -> toBackup()));
         tools.add(Theme.on("Экспорт базы для Android", Theme.GRAY_PANEL, e -> export()));
-        head.add(tools, BorderLayout.SOUTH);
-        add(head, BorderLayout.NORTH);
+        add(tools, BorderLayout.NORTH);
         add(new JScrollPane(doc), BorderLayout.CENTER);
         build();
     }

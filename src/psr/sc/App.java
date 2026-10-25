@@ -171,7 +171,7 @@ public class App extends JFrame {
      * последние кнопки просто не видны.
      */
     private JPanel makeHeader() {
-        JPanel h = Settings.headerBar(16);
+        JPanel h = Settings.headerBar(14);
         JButton maxBtn = Theme.btn("Во весь экран", null);
         maxBtn.addActionListener(e -> setExtendedState((getExtendedState() & Frame.MAXIMIZED_BOTH) == 0
             ? Frame.MAXIMIZED_BOTH : Frame.NORMAL));

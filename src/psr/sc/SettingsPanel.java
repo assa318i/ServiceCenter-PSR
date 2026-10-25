@@ -36,7 +36,6 @@ public class SettingsPanel extends JPanel {
         setLayout(new BorderLayout());
         setBackground(Theme.GRAY_BG);
         setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
-        add(Settings.headerBar(16), BorderLayout.NORTH);
 
         JPanel form = new JPanel(new java.awt.GridBagLayout());
         form.setBackground(Theme.GRAY_BG);

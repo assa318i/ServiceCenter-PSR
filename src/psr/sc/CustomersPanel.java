@@ -35,7 +35,6 @@ public class CustomersPanel extends JPanel {
         setBackground(Theme.GRAY_BG);
         setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
-        JPanel head = Settings.headerBar(12);
         JPanel tools = new JPanel();
         tools.setOpaque(false);
         tools.add(new JLabel("Сортировка: "));
@@ -48,10 +47,9 @@ public class CustomersPanel extends JPanel {
         tools.add(Theme.on("Обновить", Theme.GRAY_PANEL, e -> load()));
         if (Session.isAdmin())
             tools.add(Theme.on("Очистка ПДн", Theme.BRIGHT_RED, e -> Privacy.purge(this, selectedId())));
-        head.add(tools, BorderLayout.SOUTH);
         JPanel north = new JPanel(new BorderLayout());
         north.setOpaque(false);
-        north.add(head, BorderLayout.NORTH);
+        north.add(tools, BorderLayout.CENTER);
         north.add(bar, BorderLayout.SOUTH);
         add(north, BorderLayout.NORTH);
 

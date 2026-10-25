@@ -46,7 +46,6 @@ public class RepairsPanel extends JPanel {
         setBackground(Theme.GRAY_BG);
         setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
-        JPanel head = Settings.headerBar(12);
         JPanel tools = new JPanel();
         tools.setOpaque(false);
         tools.add(new JLabel("Статус: "));
@@ -58,29 +57,33 @@ public class RepairsPanel extends JPanel {
         tools.add(Box.createHorizontalStrut(12));
         tools.add(Theme.on("Новая заявка", Theme.YELLOW, e -> RepairForm.show(app, null, this)));
         tools.add(Theme.on("Изменить", Theme.BLUE, e -> RepairForm.show(app, selectedId(), this)));
-        tools.add(Theme.on("Импорт из файла", Theme.GRAY_PANEL, e -> RepairImport.dialog(this)));
-        tools.add(Theme.on("Статус", Theme.GRAY_PANEL, e -> changeStatus()));
-        tools.add(Theme.on("Service Level", Theme.YELLOW, e -> setSla()));
-        tools.add(Theme.on("Квитанция о приёме", Theme.BLUE, e -> printReceipt()));
-        tools.add(Theme.on("Чек (оплата)", Theme.YELLOW, e -> printBill()));
-        tools.add(Theme.on("Этикетка со штрихкодом", Theme.GRAY_PANEL, e -> printLabel()));
-        tools.add(Theme.on("Наклейки (пакет)", Theme.GRAY_PANEL, e -> Labels.batchDialog(null)));
-        tools.add(Theme.on("Найти по штрихкоду", Theme.BLUE, e -> scanFind()));
-        tools.add(Theme.on("Набор ЗЧ к заявке", Theme.YELLOW, e -> applyKit()));
-        tools.add(Theme.on("ЗЧ на заявку", Theme.GRAY_PANEL, e -> consumeParts()));
-        tools.add(Theme.on("Фото к заявке +", Theme.GRAY_PANEL, e -> addPhoto()));
-        tools.add(Theme.on("Открыть фото", Theme.GRAY_PANEL, e -> openPhotos()));
-        tools.add(Theme.on("Лента заявки", Theme.GRAY_PANEL, e -> showStream()));
-        tools.add(Theme.on("Дела по заявке", Theme.BLUE, e -> Tasks.show(this, selectedId())));
         tools.add(Theme.on("Обновить", Theme.BLUE, e -> load()));
+        tools.add(menuBtn("Печать", new String[] {
+            "Квитанция о приёме", "Чек (оплата)", "Этикетка со штрихкодом", "Наклейки (пакет)"
+        }, new Runnable[] {
+            () -> printReceipt(), () -> printBill(), () -> printLabel(), () -> Labels.batchDialog(null)
+        }));
+        tools.add(menuBtn("Запчасти", new String[] {
+            "Набор ЗЧ к заявке", "ЗЧ на заявку"
+        }, new Runnable[] {
+            () -> applyKit(), () -> consumeParts()
+        }));
+        tools.add(menuBtn("Заявка", new String[] {
+            "Статус", "Service Level", "Лента заявки", "Дела по заявке"
+        }, new Runnable[] {
+            () -> changeStatus(), () -> setSla(), () -> showStream(), () -> Tasks.show(this, selectedId())
+        }));
+        tools.add(menuBtn("Фото", new String[] {
+            "Фото к заявке +", "Открыть фото"
+        }, new Runnable[] {
+            () -> addPhoto(), () -> openPhotos()
+        }));
+        tools.add(Theme.on("Импорт из файла", Theme.GRAY_PANEL, e -> RepairImport.dialog(this)));
+        tools.add(Theme.on("Найти по штрихкоду", Theme.BLUE, e -> scanFind()));
         mine = bar.flag("назначено мне");
         late = bar.flag("просроченные");
-        // Кнопок больше, чем помещается в строку: FlowLayout переносит их, а высоту ряда берём
-        // с запасом в четыре строки — на узком окне часть кнопок уходит ниже и не должна обрезаться.
-        tools.setPreferredSize(new java.awt.Dimension(0, 150));
         JPanel north = new JPanel(new BorderLayout());
         north.setOpaque(false);
-        north.add(head, BorderLayout.NORTH);
         north.add(tools, BorderLayout.CENTER);
         north.add(bar, BorderLayout.SOUTH);
         add(north, BorderLayout.NORTH);
@@ -329,4 +332,18 @@ public class RepairsPanel extends JPanel {
     static String nz(String s) { return s == null ? "" : s; }
 
     static String stamp() { return new SimpleDateFormat("dd.MM.yyyy HH:mm").format(new Date()); }
+
+    /** Кнопка с выпадающим меню: группирует связанные действия, чтобы не загромождать панель. */
+    private javax.swing.JButton menuBtn(String title, String[] labels, Runnable[] actions) {
+        javax.swing.JButton btn = Theme.btn(title + " ▾", Theme.GRAY_PANEL);
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        for (int i = 0; i < labels.length; i++) {
+            javax.swing.JMenuItem item = new javax.swing.JMenuItem(labels[i]);
+            final Runnable action = actions[i];
+            item.addActionListener(e -> action.run());
+            menu.add(item);
+        }
+        btn.addActionListener(e -> menu.show(btn, 0, btn.getHeight()));
+        return btn;
+    }
 }
