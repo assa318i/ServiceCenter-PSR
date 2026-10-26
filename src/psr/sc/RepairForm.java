@@ -47,16 +47,29 @@ public final class RepairForm {
         });
         JButton addCustBtn = Theme.on("＋", Theme.BLUE, e -> {
             try {
-                Db.exec("INSERT INTO customers(org) VALUES('Новый заказчик')");
+                Db.exec("INSERT INTO customers(org) VALUES('')");
                 long newId = 0;
                 try (Statement st = Db.get().createStatement();
                      ResultSet rs = st.executeQuery("SELECT MAX(id) FROM customers")) {
                     if (rs.next()) newId = rs.getLong(1);
                 }
                 if (newId > 0) {
-                    String text = "Новый заказчик";
-                    customer.addItem(new Entry(newId, text));
-                    customer.setSelectedIndex(customer.getItemCount() - 1);
+                    new CustomerCard(app, newId, null).setVisible(true);
+                    customer.removeAllItems();
+                    customer.addItem("— без заказчика —");
+                    try (Statement st = Db.get().createStatement();
+                         ResultSet rs = st.executeQuery("SELECT id, org, fio, phone FROM customers ORDER BY org, fio")) {
+                        while (rs.next())
+                            customer.addItem(new Entry(rs.getLong(1), (rs.getString(2) + " " + Privacy.fio(rs.getString(3))
+                                + "  тел. " + Privacy.phone(rs.getString(4))).trim()));
+                    }
+                    for (int i = 0; i < customer.getItemCount(); i++) {
+                        Object item = customer.getItemAt(i);
+                        if (item instanceof Entry && ((Entry) item).id == newId) {
+                            customer.setSelectedIndex(i);
+                            break;
+                        }
+                    }
                 }
             } catch (Exception ex) { Warn.show(ex.getMessage()); }
         });
@@ -402,12 +415,16 @@ public final class RepairForm {
         final JPanel monthNav = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER));
         final JLabel monthLabel = new JLabel();
         monthLabel.setFont(Theme.font(16));
-        JButton prevMonth = Theme.on("◀", Theme.BLUE, e -> {
+        JButton prevMonth = Theme.btn("◄", Theme.BLUE);
+        prevMonth.setIcon(leftTriangle());
+        prevMonth.addActionListener(e -> {
             d[1]--;
             if (d[1] < 1) { d[1] = 12; d[2]--; }
             updateCalendar(calendarPanel, d, monthLabel);
         });
-        JButton nextMonth = Theme.on("▶", Theme.BLUE, e -> {
+        JButton nextMonth = Theme.btn("►", Theme.BLUE);
+        nextMonth.setIcon(rightTriangle());
+        nextMonth.addActionListener(e -> {
             d[1]++;
             if (d[1] > 12) { d[1] = 1; d[2]++; }
             updateCalendar(calendarPanel, d, monthLabel);
@@ -566,6 +583,34 @@ public final class RepairForm {
         calendarPanel.add(grid, java.awt.BorderLayout.CENTER);
         calendarPanel.revalidate();
         calendarPanel.repaint();
+    }
+
+    /** Стрелка влево: в Montserrat этого глифа нет, рисуем иконкой. */
+    private static javax.swing.Icon leftTriangle() {
+        return new javax.swing.Icon() {
+            @Override public int getIconWidth() { return 9; }
+            @Override public int getIconHeight() { return 12; }
+            @Override public void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
+                g.setColor(java.awt.Color.WHITE);
+                int[] px = { x + 9, x, x + 9 };
+                int[] py = { y, y + 6, y + 12 };
+                g.fillPolygon(px, py, 3);
+            }
+        };
+    }
+
+    /** Стрелка вправо: в Montserrat этого глифа нет, рисуем иконкой. */
+    private static javax.swing.Icon rightTriangle() {
+        return new javax.swing.Icon() {
+            @Override public int getIconWidth() { return 9; }
+            @Override public int getIconHeight() { return 12; }
+            @Override public void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
+                g.setColor(java.awt.Color.WHITE);
+                int[] px = { x, x + 9, x };
+                int[] py = { y, y + 6, y + 12 };
+                g.fillPolygon(px, py, 3);
+            }
+        };
     }
 
     private static class Entry {
