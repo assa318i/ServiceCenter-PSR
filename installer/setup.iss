@@ -14,9 +14,9 @@
 ; ============================================================================
 
 #define MyAppName "Сервис центр от PSR"
-; Версия: по умолчанию 1.0.7, можно передать /DMyAppVersion=1.2.0 (make-installer.bat берёт её из PSR_VERSION).
+; Версия: по умолчанию 1.0.8, можно передать /DMyAppVersion=1.2.0 (make-installer.bat берёт её из PSR_VERSION).
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.7"
+  #define MyAppVersion "1.0.8"
 #endif
 #define MyAppPublisher "PSR"
 #define Dist "..\build\dist"

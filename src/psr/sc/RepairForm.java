@@ -299,7 +299,7 @@ public final class RepairForm {
         p.add(buttons, g);
 
         d.setContentPane(wrap(p, id));
-        d.setSize(560, 640);
+        d.setSize(750, 640);
         d.setLocationRelativeTo(app);
         d.setVisible(true);
     }
