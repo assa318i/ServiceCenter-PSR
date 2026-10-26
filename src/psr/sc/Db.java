@@ -102,6 +102,9 @@ public final class Db {
             st.executeUpdate("CREATE TABLE IF NOT EXISTS price_list(id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "category TEXT DEFAULT '', name TEXT DEFAULT '', price REAL DEFAULT 0,"
                 + "unit TEXT DEFAULT 'руб.', note TEXT DEFAULT '')");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS repair_items(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "repair_id INTEGER, name TEXT DEFAULT '', price REAL DEFAULT 0,"
+                + "price_list_id INTEGER DEFAULT 0)");
         }
     }
 

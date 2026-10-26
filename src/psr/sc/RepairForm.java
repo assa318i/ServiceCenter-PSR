@@ -5,14 +5,19 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
-import javax.swing.JList;
 import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
@@ -184,6 +189,26 @@ public final class RepairForm {
         JLabel waitWarn = Theme.danger("Срок ожидания просрочен — Service Level станет ОПАСНО");
         waitWarn.setVisible(false);
 
+        final List<PriceItem> selectedItems = new ArrayList<>();
+        final JPanel itemsPanel = new JPanel();
+        itemsPanel.setLayout(new BoxLayout(itemsPanel, BoxLayout.Y_AXIS));
+        itemsPanel.setOpaque(false);
+        final JLabel totalLbl = new JLabel("0 руб.");
+        totalLbl.setFont(Theme.font(14));
+
+        JPanel costBreakdown = new JPanel(new java.awt.BorderLayout(6, 6));
+        costBreakdown.setOpaque(false);
+        costBreakdown.setBorder(BorderFactory.createTitledBorder("Сумма состоит из"));
+        javax.swing.JScrollPane itemsScroll = new javax.swing.JScrollPane(itemsPanel);
+        itemsScroll.setPreferredSize(new java.awt.Dimension(0, 120));
+        itemsScroll.setBorder(BorderFactory.createEmptyBorder());
+        costBreakdown.add(itemsScroll, java.awt.BorderLayout.CENTER);
+        JPanel totalPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
+        totalPanel.setOpaque(false);
+        totalPanel.add(new JLabel("Итого: "));
+        totalPanel.add(totalLbl);
+        costBreakdown.add(totalPanel, java.awt.BorderLayout.SOUTH);
+
         int y = 0;
         JPanel custRow = new JPanel(new java.awt.BorderLayout(4, 0));
         custRow.setOpaque(false);
@@ -212,6 +237,9 @@ public final class RepairForm {
         add(p, g, y++, "Ожидание запчасти до:", waitRow);
         add(p, g, y++, "Инженер:", eng);
         add(p, g, y++, "Цена ремонта, руб.:", price);
+        g.gridx = 0; g.gridwidth = 2; g.gridy = y++; g.fill = GridBagConstraints.HORIZONTAL;
+        p.add(costBreakdown, g);
+        g.gridwidth = 1; g.fill = GridBagConstraints.HORIZONTAL;
         add(p, g, y++, "Способ оплаты:", paymentMethod);
         add(p, g, y++, "Сумма предоплаты, руб.:", prepay);
         add(p, g, y++, "Гарантия на ремонт, дней:", warranty);
@@ -241,6 +269,8 @@ public final class RepairForm {
                     for (int i = 0; i < customer.getItemCount(); i++)
                         if (customer.getItemAt(i) instanceof Entry && ((Entry) customer.getItemAt(i)).id == cust)
                             customer.setSelectedIndex(i);
+                    loadItems(id, selectedItems);
+                    refreshCost(itemsPanel, totalLbl, selectedItems, price);
                 }
             } catch (Exception ex) { Warn.show(ex.getMessage()); }
         }
@@ -250,9 +280,34 @@ public final class RepairForm {
 
         JPanel buttons = new JPanel();
         buttons.setOpaque(false);
-        JButton priceBtn = Theme.on("Прайс-лист", Theme.MINT_TOP, e -> PriceList.show(d));
-        priceBtn.setToolTipText("Посмотреть стоимость работ и наборов запчастей");
+        JButton priceBtn = Theme.on("Прайс-лист", Theme.MINT_TOP, e -> {
+            String[] name = new String[1];
+            double[] data = PriceList.select(d, name);
+            if (data != null && name[0] != null) {
+                selectedItems.add(new PriceItem((long) data[0], name[0], data[1]));
+                refreshCost(itemsPanel, totalLbl, selectedItems, price);
+            }
+        });
+        priceBtn.setToolTipText("Добавить позицию из прайс-листа");
         buttons.add(priceBtn);
+        JButton manualBtn = Theme.on("Вручную", Theme.BLUE, e -> {
+            String input = JOptionPane.showInputDialog(d, "Наименование и цена через пробел:",
+                "Добавить позицию", JOptionPane.PLAIN_MESSAGE);
+            if (input != null && !input.trim().isEmpty()) {
+                String[] parts = input.trim().split("\\s+", 2);
+                if (parts.length >= 2) {
+                    try {
+                        double priceVal = Double.parseDouble(parts[0].replace(",", "."));
+                        selectedItems.add(new PriceItem(0, parts[1], priceVal));
+                        refreshCost(itemsPanel, totalLbl, selectedItems, price);
+                    } catch (Exception ex) {
+                        Warn.show("Неверный формат цены");
+                    }
+                }
+            }
+        });
+        manualBtn.setToolTipText("Добавить позицию вручную (цена наименование)");
+        buttons.add(manualBtn);
         buttons.add(Theme.on("Сохранить", Theme.YELLOW, e -> {
             String warrantyHit = underWarranty(serial.getText(), id);
             if (warrantyHit != null) {
@@ -291,6 +346,7 @@ public final class RepairForm {
                     try (Statement st = Db.get().createStatement();
                          ResultSet rs = st.executeQuery("SELECT MAX(id) FROM repairs")) {
                         long newId = rs.next() ? rs.getLong(1) : 0;
+                        saveItems(newId, selectedItems);
                         Stream.log(newId, "Заявка создана: "
                             + RepairsPanel.STATUS_RU[status.getSelectedIndex()]
                             + (warrantyHit == null ? "" : " · ГАРАНТИЙНЫЙ СЛУЧАЙ: " + warrantyHit));
@@ -303,6 +359,7 @@ public final class RepairForm {
                         if (c == 0) return;
                         if (c == 1) {
                             Db.update("UPDATE repairs SET " + sql + ", rev=rev+1 WHERE id=" + id);
+                            saveItems(id, selectedItems);
                             Stream.log(id, "Данные заявки изменены (перезаписана версия другого сотрудника)");
                         } else {
                             Stream.log(id, "Правка отменена: в базе осталась версия другого сотрудника");
@@ -311,6 +368,7 @@ public final class RepairForm {
                         refresh.load();
                         return;
                     }
+                    saveItems(id, selectedItems);
                     Stream.log(id, "Данные заявки изменены");
                 }
                 d.dispose();
@@ -626,6 +684,17 @@ public final class RepairForm {
         Entry(long id, String text) { this.id = id; this.text = text; }
     }
 
+    private static class PriceItem {
+        final long priceListId;
+        final String name;
+        final double price;
+        PriceItem(long priceListId, String name, double price) {
+            this.priceListId = priceListId;
+            this.name = name;
+            this.price = price;
+        }
+    }
+
     /** Диалог ввода текста с темой оформления. */
     private static String showInputDialog(java.awt.Dialog owner, String message) {
         javax.swing.JDialog dlg = new javax.swing.JDialog(owner, "Добавление", true);
@@ -661,6 +730,55 @@ public final class RepairForm {
         dlg.setVisible(true);
         
         return result[0];
+    }
+
+    /** Обновить панель состава стоимости и пересчитать итог. */
+    private static void refreshCost(JPanel itemsPanel, JLabel totalLbl,
+            List<PriceItem> items, JTextField price) {
+        itemsPanel.removeAll();
+        for (int i = 0; i < items.size(); i++) {
+            final int idx = i;
+            PriceItem item = items.get(i);
+            JPanel row = new JPanel(new java.awt.BorderLayout(6, 2));
+            row.setOpaque(false);
+            row.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 30));
+            row.add(new JLabel(item.name + " — " + WarehousePanel.fmt(item.price) + " руб."),
+                java.awt.BorderLayout.CENTER);
+            JButton removeBtn = Theme.btn("×", Theme.GRAY_PANEL);
+            removeBtn.setMargin(new Insets(0, 6, 0, 6));
+            removeBtn.addActionListener(e -> {
+                items.remove(idx);
+                refreshCost(itemsPanel, totalLbl, items, price);
+            });
+            row.add(removeBtn, java.awt.BorderLayout.EAST);
+            itemsPanel.add(row);
+        }
+        double total = 0;
+        for (PriceItem it : items) total += it.price;
+        totalLbl.setText(WarehousePanel.fmt(total) + " руб.");
+        price.setText(String.valueOf(total));
+        itemsPanel.revalidate();
+        itemsPanel.repaint();
+    }
+
+    /** Сохранить позиции состава стоимости в базу. */
+    private static void saveItems(long repairId, List<PriceItem> items) throws Exception {
+        Db.exec("DELETE FROM repair_items WHERE repair_id=" + repairId);
+        for (PriceItem item : items) {
+            Db.exec("INSERT INTO repair_items(repair_id,name,price,price_list_id) VALUES("
+                + repairId + ",'" + Db.esc(item.name) + "'," + item.price + "," + item.priceListId + ")");
+        }
+    }
+
+    /** Загрузить позиции состава стоимости из базы. */
+    private static void loadItems(long repairId, List<PriceItem> items) {
+        try (Statement st = Db.get().createStatement();
+             ResultSet rs = st.executeQuery("SELECT name, price, price_list_id FROM repair_items WHERE repair_id="
+                 + repairId + " ORDER BY id")) {
+            while (rs.next()) {
+                items.add(new PriceItem(rs.getLong(3), rs.getString(1), rs.getDouble(2)));
+            }
+        } catch (Exception ex) { Warn.show(ex.getMessage()); }
     }
 
     private RepairForm() { }
