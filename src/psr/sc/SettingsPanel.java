@@ -29,6 +29,11 @@ public class SettingsPanel extends JPanel {
         new javax.swing.JPasswordField(Settings.get("smtp_pass"), 24);
     private final JTextField smtpTo = f(Settings.get("smtp_to"));
     private final JTextField cloudPath = f(Settings.get("cloud_path"));
+    private final javax.swing.JComboBox<String> timeSource = new javax.swing.JComboBox<>(
+        new String[] { "Системное время компьютера", "Время с NTP-сервера" });
+    private final javax.swing.JComboBox<String> ntpServer = new javax.swing.JComboBox<>(
+        new String[] { "pool.ntp.org", "ru.pool.ntp.org", "time.nist.gov", "time.windows.com",
+                       "0.ru.pool.ntp.org", "1.ru.pool.ntp.org", "2.ru.pool.ntp.org" });
     private final JLabel logoPath = new JLabel(Settings.get("logo"));
 
     public SettingsPanel(App app) {
@@ -36,6 +41,14 @@ public class SettingsPanel extends JPanel {
         setLayout(new BorderLayout());
         setBackground(Theme.GRAY_BG);
         setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+
+        // Восстановить сохранённые значения
+        if ("ntp".equals(Settings.get("time_source"))) timeSource.setSelectedIndex(1);
+        String savedNtp = Settings.get("ntp_server");
+        if (savedNtp != null && !savedNtp.trim().isEmpty()) ntpServer.setSelectedItem(savedNtp.trim());
+        ntpServer.setEditable(true);
+        ntpServer.setFont(Theme.font(16));
+        timeSource.setFont(Theme.font(16));
 
         JPanel form = new JPanel(new java.awt.GridBagLayout());
         form.setBackground(Theme.GRAY_BG);
@@ -54,6 +67,10 @@ public class SettingsPanel extends JPanel {
         y = row(form, g, y, "SMTP логин (ваша почта):", smtpUser);
         y = row(form, g, y, "SMTP пароль:", smtpPass);
         y = row(form, g, y, "Отправлять акты на почту:", smtpTo);
+
+        // Источник времени
+        y = rowCombo(form, g, y, "Источник текущего времени:", timeSource);
+        y = rowCombo(form, g, y, "NTP-сервер (можно ввести свой):", ntpServer);
 
         JPanel copiesRow = new JPanel(new BorderLayout(6, 0));
         copiesRow.setOpaque(false);
@@ -113,6 +130,12 @@ public class SettingsPanel extends JPanel {
         return y + 1;
     }
 
+    private int rowCombo(JPanel p, java.awt.GridBagConstraints g, int y, String text, javax.swing.JComboBox<?> cb) {
+        g.gridx = 0; g.gridy = y; g.weightx = 0; p.add(label(text), g);
+        g.gridx = 1; g.weightx = 1; p.add(cb, g);
+        return y + 1;
+    }
+
     private static JTextField f(String v) {
         JTextField t = new JTextField(v, 24);
         t.setFont(Theme.font(16));
@@ -152,6 +175,9 @@ public class SettingsPanel extends JPanel {
             Settings.set("smtp_pass", new String(smtpPass.getPassword()));
             Settings.set("smtp_to", smtpTo.getText().trim());
             Settings.set("cloud_path", cloudPath.getText().trim());
+            Settings.set("time_source", timeSource.getSelectedIndex() == 0 ? "system" : "ntp");
+            Object ntpVal = ntpServer.getSelectedItem();
+            Settings.set("ntp_server", ntpVal != null ? ntpVal.toString().trim() : "pool.ntp.org");
             app.rebuildHeader();
             JOptionPane.showMessageDialog(this,
                 "Настройки сохранены. Логотип и ИНН теперь на каждом окне программы.",

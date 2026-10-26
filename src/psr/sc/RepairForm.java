@@ -45,31 +45,39 @@ public final class RepairForm {
                 return this;
             }
         });
-        JButton addCustBtn = Theme.on("＋", Theme.BLUE, e -> {
+        JButton addCustBtn = Theme.on("+", Theme.BLUE, e -> {
             try {
                 Db.exec("INSERT INTO customers(org) VALUES('')");
-                long newId = 0;
+                long tempId = 0;
                 try (Statement st = Db.get().createStatement();
                      ResultSet rs = st.executeQuery("SELECT MAX(id) FROM customers")) {
-                    if (rs.next()) newId = rs.getLong(1);
+                    if (rs.next()) tempId = rs.getLong(1);
                 }
+                final long newId = tempId;
                 if (newId > 0) {
-                    new CustomerCard(app, newId, null).setVisible(true);
-                    customer.removeAllItems();
-                    customer.addItem("— без заказчика —");
-                    try (Statement st = Db.get().createStatement();
-                         ResultSet rs = st.executeQuery("SELECT id, org, fio, phone FROM customers ORDER BY org, fio")) {
-                        while (rs.next())
-                            customer.addItem(new Entry(rs.getLong(1), (rs.getString(2) + " " + Privacy.fio(rs.getString(3))
-                                + "  тел. " + Privacy.phone(rs.getString(4))).trim()));
-                    }
-                    for (int i = 0; i < customer.getItemCount(); i++) {
-                        Object item = customer.getItemAt(i);
-                        if (item instanceof Entry && ((Entry) item).id == newId) {
-                            customer.setSelectedIndex(i);
-                            break;
+                    CustomerCard card = new CustomerCard(d, newId, null);
+                    // Обновить список заказчиков после закрытия карточки
+                    card.addWindowListener(new java.awt.event.WindowAdapter() {
+                        @Override public void windowClosed(java.awt.event.WindowEvent e) {
+                            customer.removeAllItems();
+                            customer.addItem("— без заказчика —");
+                            try (Statement st = Db.get().createStatement();
+                                 ResultSet rs = st.executeQuery("SELECT id, org, fio, phone FROM customers ORDER BY org, fio")) {
+                                while (rs.next())
+                                    customer.addItem(new Entry(rs.getLong(1), (rs.getString(2) + " " + Privacy.fio(rs.getString(3))
+                                        + "  тел. " + Privacy.phone(rs.getString(4))).trim()));
+                            } catch (Exception ex) { Warn.show(ex.getMessage()); }
+                            // Выбрать только что созданного заказчика
+                            for (int i = 0; i < customer.getItemCount(); i++) {
+                                Object item = customer.getItemAt(i);
+                                if (item instanceof Entry && ((Entry) item).id == newId) {
+                                    customer.setSelectedIndex(i);
+                                    break;
+                                }
+                            }
                         }
-                    }
+                    });
+                    card.setVisible(true);
                 }
             } catch (Exception ex) { Warn.show(ex.getMessage()); }
         });
@@ -83,16 +91,22 @@ public final class RepairForm {
              ResultSet rs = st.executeQuery("SELECT name FROM equipment_types ORDER BY name")) {
             while (rs.next()) eq.addItem(rs.getString(1));
         } catch (Exception ex) { Warn.show(ex.getMessage()); }
-        JButton addEquipBtn = Theme.on("＋", Theme.BLUE, e -> {
-            String val = (String) eq.getSelectedItem();
-            if (val == null || val.trim().isEmpty()) { Warn.show("Введите тип оборудования"); return; }
+        JButton addEquipBtn = Theme.on("+", Theme.BLUE, e -> {
+            String val = showInputDialog(d, "Введите тип оборудования:");
+            if (val == null || val.trim().isEmpty()) return;
             val = val.trim();
             for (int i = 0; i < eq.getItemCount(); i++)
                 if (val.equalsIgnoreCase(eq.getItemAt(i))) { eq.setSelectedIndex(i); return; }
             try {
                 Db.exec("INSERT INTO equipment_types(name) VALUES('" + Db.esc(val) + "')");
-                eq.insertItemAt(val, 0);
-                eq.setSelectedIndex(0);
+                // Перезагрузить список для сохранения сортировки
+                eq.removeAllItems();
+                try (Statement st = Db.get().createStatement();
+                     ResultSet rs = st.executeQuery("SELECT name FROM equipment_types ORDER BY name")) {
+                    while (rs.next()) eq.addItem(rs.getString(1));
+                }
+                // Выбрать добавленный элемент
+                eq.setSelectedItem(val);
             } catch (Exception ex) { Warn.show(ex.getMessage()); }
         });
         addEquipBtn.setToolTipText("Добавить тип оборудования в справочник");
@@ -105,16 +119,22 @@ public final class RepairForm {
              ResultSet rs = st.executeQuery("SELECT name FROM fault_types ORDER BY name")) {
             while (rs.next()) prob.addItem(rs.getString(1));
         } catch (Exception ex) { Warn.show(ex.getMessage()); }
-        JButton addFaultBtn = Theme.on("＋", Theme.BLUE, e -> {
-            String val = (String) prob.getSelectedItem();
-            if (val == null || val.trim().isEmpty()) { Warn.show("Введите тип неисправности"); return; }
+        JButton addFaultBtn = Theme.on("+", Theme.BLUE, e -> {
+            String val = showInputDialog(d, "Введите тип неисправности:");
+            if (val == null || val.trim().isEmpty()) return;
             val = val.trim();
             for (int i = 0; i < prob.getItemCount(); i++)
                 if (val.equalsIgnoreCase(prob.getItemAt(i))) { prob.setSelectedIndex(i); return; }
             try {
                 Db.exec("INSERT INTO fault_types(name) VALUES('" + Db.esc(val) + "')");
-                prob.insertItemAt(val, 0);
-                prob.setSelectedIndex(0);
+                // Перезагрузить список для сохранения сортировки
+                prob.removeAllItems();
+                try (Statement st = Db.get().createStatement();
+                     ResultSet rs = st.executeQuery("SELECT name FROM fault_types ORDER BY name")) {
+                    while (rs.next()) prob.addItem(rs.getString(1));
+                }
+                // Выбрать добавленный элемент
+                prob.setSelectedItem(val);
             } catch (Exception ex) { Warn.show(ex.getMessage()); }
         });
         addFaultBtn.setToolTipText("Добавить тип неисправности в справочник");
@@ -136,7 +156,7 @@ public final class RepairForm {
         wait.setToolTipText("Примерный срок ожидания запчасти, дд.мм.гггг");
         warranty.setToolTipText("Гарантия на выполненный ремонт, дней");
         prepay.setToolTipText("Сумма предоплаты, руб.");
-        JButton calBtn = Theme.on("📅", Theme.BLUE, e -> {
+        JButton calBtn = Theme.on("Календарь", Theme.BLUE, e -> {
             String picked = pickDate(d, wait.getText());
             if (picked != null) wait.setText(picked);
         });
@@ -398,7 +418,10 @@ public final class RepairForm {
 
     /** Диалог выбора даты с визуальным календарём. Возвращает дату в формате дд.мм.гггг или null если отменено. */
     private static String pickDate(java.awt.Dialog owner, String current) {
-        int day = 1, month = 1, year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR);
+        java.util.Calendar today = NtpClient.now();
+        int day = today.get(java.util.Calendar.DAY_OF_MONTH);
+        int month = today.get(java.util.Calendar.MONTH) + 1;
+        int year = today.get(java.util.Calendar.YEAR);
         if (current != null && current.trim().length() == 10) {
             try {
                 day = Integer.parseInt(current.substring(0, 2));
@@ -415,38 +438,39 @@ public final class RepairForm {
         final JPanel monthNav = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER));
         final JLabel monthLabel = new JLabel();
         monthLabel.setFont(Theme.font(16));
-        JButton prevMonth = Theme.btn("◄", Theme.BLUE);
-        prevMonth.setIcon(leftTriangle());
+        
+        // Спиннеры для точной настройки (создаём заранее для синхронизации)
+        final javax.swing.JSpinner daySpin = new javax.swing.JSpinner(
+            new javax.swing.SpinnerNumberModel(day, 1, 31, 1));
+        final javax.swing.JSpinner monthSpin = new javax.swing.JSpinner(
+            new javax.swing.SpinnerNumberModel(month, 1, 12, 1));
+        final javax.swing.JSpinner yearSpin = new javax.swing.JSpinner(
+            new javax.swing.SpinnerNumberModel(year, 2020, 2099, 1));
+        
+        JButton prevMonth = Theme.btn("<", Theme.BLUE);
         prevMonth.addActionListener(e -> {
             d[1]--;
             if (d[1] < 1) { d[1] = 12; d[2]--; }
-            updateCalendar(calendarPanel, d, monthLabel);
+            updateCalendar(calendarPanel, d, monthLabel, daySpin, monthSpin, yearSpin);
         });
-        JButton nextMonth = Theme.btn("►", Theme.BLUE);
-        nextMonth.setIcon(rightTriangle());
+        JButton nextMonth = Theme.btn(">", Theme.BLUE);
         nextMonth.addActionListener(e -> {
             d[1]++;
             if (d[1] > 12) { d[1] = 1; d[2]++; }
-            updateCalendar(calendarPanel, d, monthLabel);
+            updateCalendar(calendarPanel, d, monthLabel, daySpin, monthSpin, yearSpin);
         });
         monthNav.add(prevMonth);
         monthNav.add(monthLabel);
         monthNav.add(nextMonth);
         calendarPanel.add(monthNav, java.awt.BorderLayout.NORTH);
         
-        updateCalendar(calendarPanel, d, monthLabel);
+        updateCalendar(calendarPanel, d, monthLabel, daySpin, monthSpin, yearSpin);
         calendarPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         dlg.add(calendarPanel, java.awt.BorderLayout.CENTER);
         
-        // Спиннеры для точной настройки
+        // Панель спиннеров
         JPanel spinners = new JPanel(new java.awt.GridLayout(3, 2, 4, 4));
         spinners.setBorder(BorderFactory.createTitledBorder("Точная настройка"));
-        javax.swing.JSpinner daySpin = new javax.swing.JSpinner(
-            new javax.swing.SpinnerNumberModel(day, 1, 31, 1));
-        javax.swing.JSpinner monthSpin = new javax.swing.JSpinner(
-            new javax.swing.SpinnerNumberModel(month, 1, 12, 1));
-        javax.swing.JSpinner yearSpin = new javax.swing.JSpinner(
-            new javax.swing.SpinnerNumberModel(year, 2020, 2099, 1));
         ((javax.swing.JComponent) daySpin.getEditor()).setFont(Theme.font(14));
         ((javax.swing.JComponent) monthSpin.getEditor()).setFont(Theme.font(14));
         ((javax.swing.JComponent) yearSpin.getEditor()).setFont(Theme.font(14));
@@ -462,7 +486,7 @@ public final class RepairForm {
             d[0] = (Integer) daySpin.getValue();
             d[1] = (Integer) monthSpin.getValue();
             d[2] = (Integer) yearSpin.getValue();
-            updateCalendar(calendarPanel, d, monthLabel);
+            updateCalendar(calendarPanel, d, monthLabel, daySpin, monthSpin, yearSpin);
         };
         daySpin.addChangeListener(spinnerListener);
         monthSpin.addChangeListener(spinnerListener);
@@ -494,11 +518,18 @@ public final class RepairForm {
         return String.format("%02d.%02d.%04d", d[0], d[1], d[2]);
     }
     
-    /** Обновляет визуальный календарь. */
-    private static void updateCalendar(JPanel calendarPanel, int[] d, JLabel monthLabel) {
+    /** Обновляет визуальный календарь и синхронизирует спиннеры. */
+    private static void updateCalendar(JPanel calendarPanel, int[] d, JLabel monthLabel,
+                                       javax.swing.JSpinner daySpin, javax.swing.JSpinner monthSpin,
+                                       javax.swing.JSpinner yearSpin) {
         String[] monthNames = { "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
                                 "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь" };
         monthLabel.setText(monthNames[d[1] - 1] + " " + d[2]);
+        
+        // Синхронизируем спиннеры с текущей датой
+        daySpin.setValue(d[0]);
+        monthSpin.setValue(d[1]);
+        yearSpin.setValue(d[2]);
         
         // Удаляем старую сетку календаря
         if (calendarPanel.getComponentCount() > 1) {
@@ -554,6 +585,8 @@ public final class RepairForm {
             
             dayBtn.addActionListener(e -> {
                 d[0] = dayNum;
+                // Обновляем спиннер дня
+                daySpin.setValue(dayNum);
                 // Обновляем календарь
                 java.awt.Container parent = ((JButton)e.getSource()).getParent();
                 JPanel calGrid = (JPanel) parent;
@@ -585,37 +618,46 @@ public final class RepairForm {
         calendarPanel.repaint();
     }
 
-    /** Стрелка влево: в Montserrat этого глифа нет, рисуем иконкой. */
-    private static javax.swing.Icon leftTriangle() {
-        return new javax.swing.Icon() {
-            @Override public int getIconWidth() { return 9; }
-            @Override public int getIconHeight() { return 12; }
-            @Override public void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
-                g.setColor(java.awt.Color.WHITE);
-                int[] px = { x + 9, x, x + 9 };
-                int[] py = { y, y + 6, y + 12 };
-                g.fillPolygon(px, py, 3);
-            }
-        };
-    }
-
-    /** Стрелка вправо: в Montserrat этого глифа нет, рисуем иконкой. */
-    private static javax.swing.Icon rightTriangle() {
-        return new javax.swing.Icon() {
-            @Override public int getIconWidth() { return 9; }
-            @Override public int getIconHeight() { return 12; }
-            @Override public void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y) {
-                g.setColor(java.awt.Color.WHITE);
-                int[] px = { x, x + 9, x };
-                int[] py = { y, y + 6, y + 12 };
-                g.fillPolygon(px, py, 3);
-            }
-        };
-    }
-
     private static class Entry {
         final long id; final String text;
         Entry(long id, String text) { this.id = id; this.text = text; }
+    }
+
+    /** Диалог ввода текста с темой оформления. */
+    private static String showInputDialog(java.awt.Dialog owner, String message) {
+        javax.swing.JDialog dlg = new javax.swing.JDialog(owner, "Добавление", true);
+        dlg.setLayout(new java.awt.BorderLayout(10, 10));
+        dlg.getContentPane().setBackground(Theme.GRAY_BG);
+        
+        JPanel content = new JPanel(new java.awt.BorderLayout(6, 6));
+        content.setBackground(Theme.GRAY_BG);
+        content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        JLabel lbl = new JLabel(message);
+        lbl.setFont(Theme.font(14));
+        content.add(lbl, java.awt.BorderLayout.NORTH);
+        
+        JTextField field = new JTextField(30);
+        field.setFont(Theme.font(14));
+        content.add(field, java.awt.BorderLayout.CENTER);
+        
+        final String[] result = { null };
+        
+        JPanel buttons = new JPanel();
+        buttons.setOpaque(false);
+        buttons.add(Theme.on("Добавить", Theme.YELLOW, e -> {
+            result[0] = field.getText();
+            dlg.dispose();
+        }));
+        buttons.add(Theme.on("Отмена", Theme.GRAY_PANEL, e -> dlg.dispose()));
+        content.add(buttons, java.awt.BorderLayout.SOUTH);
+        
+        dlg.setContentPane(content);
+        dlg.pack();
+        dlg.setLocationRelativeTo(owner);
+        dlg.setVisible(true);
+        
+        return result[0];
     }
 
     private RepairForm() { }

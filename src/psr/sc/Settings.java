@@ -31,6 +31,8 @@ public final class Settings {
         DEF.put("smtp_pass", "");
         DEF.put("smtp_to", "");
         DEF.put("cloud_path", "");
+        DEF.put("time_source", "system");
+        DEF.put("ntp_server", "pool.ntp.org");
     }
 
     public static String get(String key) {

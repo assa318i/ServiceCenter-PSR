@@ -13,12 +13,13 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
 /** Главное окно: шапка с логотипом, панель просрочек, навигация, панели модулей. */
 public class App extends JFrame {
-    public static final String VERSION = "1.0.8";
+    public static final String VERSION = "1.0.20";
     public static final String REPAIRS = "repairs", CUSTOMERS = "customers",
         WAREHOUSE = "warehouse", REPORTS = "reports", FINANCE = "finance";
 
@@ -32,10 +33,19 @@ public class App extends JFrame {
         java.io.File winIcon = new java.io.File("icon.png");
         if (winIcon.isFile()) setIconImages(java.util.Arrays.asList(
             new javax.swing.ImageIcon(winIcon.getPath()).getImage()));
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override public void windowClosing(java.awt.event.WindowEvent e) {
+                int confirm = JOptionPane.showConfirmDialog(
+                    App.this,
+                    "Вы действительно хотите закрыть программу?",
+                    "Подтверждение закрытия",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+                if (confirm != JOptionPane.YES_OPTION) return;
                 try { Export.backup(); } catch (Exception ignored) { }
+                dispose();
+                System.exit(0);
             }
         });
         setSize(1280, 800);

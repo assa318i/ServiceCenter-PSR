@@ -26,6 +26,8 @@ public class KitsPanel extends JPanel {
         tools.add(Theme.on("Новый набор", Theme.YELLOW, e -> editKit()));
         tools.add(Theme.on("Изменить состав", Theme.BLUE, e -> editKit(selected())));
         tools.add(Theme.on("Удалить", Theme.BRIGHT_RED, e -> deleteKit()));
+        tools.add(Theme.on("Экспорт в файл", Theme.MINT_TOP, e -> exportKits()));
+        tools.add(Theme.on("Импорт из файла", Theme.MINT_TOP, e -> KitsImport.dialog(this)));
         tools.add(Theme.on("Обновить", Theme.GRAY_PANEL, e -> load()));
         add(tools, BorderLayout.NORTH);
         add(new JScrollPane(kits), BorderLayout.CENTER);
@@ -217,5 +219,19 @@ public class KitsPanel extends JPanel {
     private static String firstWord(String s) {
         int i = s.indexOf(' ');
         return i < 0 ? s : s.substring(0, i);
+    }
+
+    private void exportKits() {
+        try {
+            java.io.File out = Export.csv("nabory-zch",
+                "SELECT k.name, k.equipment_type, p.article, p.name, p.qty "
+                + "FROM kits k LEFT JOIN kit_parts p ON p.kit_id=k.id ORDER BY k.name, p.id",
+                new String[] { "Набор", "Тип техники", "Артикул ЗЧ", "Название ЗЧ", "Количество" });
+            JOptionPane.showMessageDialog(this,
+                "Экспортировано в файл:\n" + out.getAbsolutePath(),
+                "Экспорт наборов ЗЧ", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            Warn.show("Ошибка экспорта: " + ex.getMessage());
+        }
     }
 }

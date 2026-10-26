@@ -15,7 +15,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 
 import javax.swing.JFileChooser;
-import javax.swing.JFrame;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -24,7 +24,7 @@ import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /** Карточка заказчика: все данные крупным шрифтом, контакты, доверенности, акты. */
-public class CustomerCard extends JFrame {
+public class CustomerCard extends JDialog {
 
     private final long id;
     private final CustomersPanel back;
@@ -33,13 +33,14 @@ public class CustomerCard extends JFrame {
         payMethod = big(), payDate = big(), prepay = big(), prepayDate = big(), notes = big();
     private final AttachmentList att = new AttachmentList();
 
-    public CustomerCard(JFrame owner, long customerId, CustomersPanel back) {
-        super("Карточка заказчика №" + customerId);
+    public CustomerCard(java.awt.Window owner, long customerId, CustomersPanel back) {
+        super(owner, "Карточка заказчика №" + customerId);
         this.id = customerId;
         this.back = back;
         setSize(1000, 780);
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setModal(false);
         getContentPane().setBackground(Theme.GRAY_BG);
         setLayout(new BorderLayout());
         add(Settings.headerBar(14), BorderLayout.NORTH);
@@ -54,9 +55,11 @@ public class CustomerCard extends JFrame {
         int y = 0;
         y = row(form, g, y, "Название организации:", org);
         y = row(form, g, y, "ФИО клиента (имя, отчество, фамилия):", fio);
+        setupPhoneField(phone);
         y = row(form, g, y, "Телефон:", phone);
         y = row(form, g, y, "Адрес:", address);
         y = section(form, g, y, "Контактная информация (дозаполнение):");
+        setupPhoneField(contactPhone);
         y = row(form, g, y, "Контактный телефон:", contactPhone);
         y = row(form, g, y, "Лицо с доверенностью:", attorney);
         y = row(form, g, y, "Водитель (при наличии):", driver);
@@ -74,13 +77,23 @@ public class CustomerCard extends JFrame {
         tools.add(Theme.on("Приложить PDF/JPG (доверенность)", Theme.BLUE, e -> addAttach()));
         tools.add(Theme.on("Открыть последний файл", Theme.GRAY_PANEL, e -> openLast()));
         tools.add(Theme.on("Печать акта о выполненных работах", Theme.BRIGHT_RED, e -> printAct()));
-        tools.add(Theme.on("Закрыть", Theme.GRAY_PANEL, e -> { back.load(); dispose(); }));
+        tools.add(Theme.on("Закрыть", Theme.GRAY_PANEL, e -> { if (back != null) back.load(); dispose(); }));
         g.gridx = 0; g.gridwidth = 2; g.gridy = y;
         form.add(tools, g);
 
         add(new JScrollPane(form), BorderLayout.CENTER);
         add(att.panel(), BorderLayout.EAST);
         load();
+        
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosing(java.awt.event.WindowEvent e) {
+                if (org.getText().trim().isEmpty()) {
+                    try {
+                        Db.exec("DELETE FROM customers WHERE id=" + id);
+                    } catch (Exception ignored) { }
+                }
+            }
+        });
     }
 
     private static JTextField big() {
@@ -88,6 +101,18 @@ public class CustomerCard extends JFrame {
         t.setFont(Theme.font(18));
         t.setBorder(BorderFactory.createLineBorder(Theme.BLACK, 1));
         return t;
+    }
+
+    private static void setupPhoneField(JTextField field) {
+        field.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent e) {
+                if (field.getText().trim().isEmpty()) {
+                    field.setText("+7(");
+                    field.setCaretPosition(3);
+                }
+            }
+        });
     }
 
     private static JLabel lbl(String s) {
@@ -145,7 +170,7 @@ public class CustomerCard extends JFrame {
                 + Db.esc(payDate.getText()) + "', prepay=" + RepairForm.parse(prepay.getText())
                 + ", prepay_date='" + Db.esc(prepayDate.getText()) + "', notes='"
                 + Db.esc(notes.getText()) + "' WHERE id=" + id);
-            back.load();
+            if (back != null) back.load();
             JOptionPane.showMessageDialog(this, "Сохранено", "Карточка заказчика",
                 JOptionPane.PLAIN_MESSAGE);
         } catch (Exception ex) { Warn.show(ex.getMessage()); }

@@ -28,7 +28,7 @@ public final class Documents {
     private static boolean empty(String s) { return s == null || s.trim().isEmpty(); }
 
     /** Акт о выполненных работах по ремонту repairId для заказчика customerId. */
-    public static void act(JFrame owner, long customerId, long repairId) {
+    public static void act(java.awt.Window owner, long customerId, long repairId) {
         JTextPane p = Print.pane();
         header(p, "АКТ о выполненных работах №" + repairId);
         try {
@@ -217,12 +217,12 @@ public final class Documents {
         catch (Exception e) { return "00000000"; }
     }
 
-    static void previewDoc(JFrame owner, JTextPane doc, String title) {
+    static void previewDoc(java.awt.Window owner, JTextPane doc, String title) {
         preview(owner, doc, title);
     }
 
-    private static void preview(JFrame owner, JTextPane doc, String title) {
-        JDialog d = new JDialog(owner, title, false);
+    private static void preview(java.awt.Window owner, JTextPane doc, String title) {
+        JDialog d = new JDialog(owner, title, java.awt.Dialog.ModalityType.MODELESS);
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(Theme.GRAY_BG);
         root.add(Settings.headerBar(12), BorderLayout.NORTH);
