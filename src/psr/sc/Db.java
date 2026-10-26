@@ -99,6 +99,9 @@ public final class Db {
                 + "name TEXT UNIQUE)");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS equipment_types(id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "name TEXT UNIQUE)");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS price_list(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "category TEXT DEFAULT '', name TEXT DEFAULT '', price REAL DEFAULT 0,"
+                + "unit TEXT DEFAULT 'руб.', note TEXT DEFAULT '')");
         }
     }
 

@@ -11,7 +11,7 @@ public final class Roles {
     public static final String REPAIRS = "repairs", CUSTOMERS = "customers", WAREHOUSE = "warehouse",
         CARTRIDGES = "cartridges", KITS = "kits", REPORTS = "reports", FINANCE = "finance",
         SETTINGS = "settings", TASKS = "tasks", PII = "pii",
-        TIMES = "times", CALENDAR = "calendar";
+        TIMES = "times", CALENDAR = "calendar", PRICE = "price";
 
     /** Порядок и подписи — как в окне «Сотрудники, роли и доступ». */
     public static final String[][] LIST = {
@@ -85,6 +85,7 @@ public final class Roles {
     public static final String[][] SECTIONS = {
         { REPAIRS, "Заявки на ремонт" }, { CUSTOMERS, "Заказчики" }, { WAREHOUSE, "Склад" },
         { CARTRIDGES, "Картриджи и граммовка" }, { KITS, "Наборы запасных частей" },
+        { PRICE, "Прайс-лист" },
         { REPORTS, "Отчётность" }, { FINANCE, "Бухгалтерия" }, { TIMES, "Учёт рабочего времени" },
         { SETTINGS, "Настройки программы" }, { TASKS, "Дела и напоминания" },
         { CALENDAR, "Производственный календарь" }, { PII, "Персональные данные заказчиков" },

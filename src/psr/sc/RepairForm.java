@@ -250,6 +250,9 @@ public final class RepairForm {
 
         JPanel buttons = new JPanel();
         buttons.setOpaque(false);
+        JButton priceBtn = Theme.on("Прайс-лист", Theme.MINT_TOP, e -> PriceList.show(d));
+        priceBtn.setToolTipText("Посмотреть стоимость работ и наборов запчастей");
+        buttons.add(priceBtn);
         buttons.add(Theme.on("Сохранить", Theme.YELLOW, e -> {
             String warrantyHit = underWarranty(serial.getText(), id);
             if (warrantyHit != null) {
