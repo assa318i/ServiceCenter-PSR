@@ -6,7 +6,9 @@ import java.awt.Insets;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
+import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JList;
@@ -43,16 +45,97 @@ public final class RepairForm {
                 return this;
             }
         });
+        JButton addCustBtn = Theme.on("＋", Theme.BLUE, e -> {
+            try {
+                Db.exec("INSERT INTO customers(org) VALUES('Новый заказчик')");
+                long newId = 0;
+                try (Statement st = Db.get().createStatement();
+                     ResultSet rs = st.executeQuery("SELECT MAX(id) FROM customers")) {
+                    if (rs.next()) newId = rs.getLong(1);
+                }
+                if (newId > 0) {
+                    String text = "Новый заказчик";
+                    customer.addItem(new Entry(newId, text));
+                    customer.setSelectedIndex(customer.getItemCount() - 1);
+                }
+            } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        });
+        addCustBtn.setToolTipText("Добавить нового заказчика");
+        addCustBtn.setMargin(new java.awt.Insets(2, 6, 2, 6));
 
-        JTextField eq = new JTextField(24), prob = new JTextField(24), eng = new JTextField(18),
-            mgr = new JTextField(18),
+        JComboBox<String> eq = new JComboBox<>();
+        eq.setEditable(true);
+        eq.setFont(Theme.font(14));
+        try (Statement st = Db.get().createStatement();
+             ResultSet rs = st.executeQuery("SELECT name FROM equipment_types ORDER BY name")) {
+            while (rs.next()) eq.addItem(rs.getString(1));
+        } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        JButton addEquipBtn = Theme.on("＋", Theme.BLUE, e -> {
+            String val = (String) eq.getSelectedItem();
+            if (val == null || val.trim().isEmpty()) { Warn.show("Введите тип оборудования"); return; }
+            val = val.trim();
+            for (int i = 0; i < eq.getItemCount(); i++)
+                if (val.equalsIgnoreCase(eq.getItemAt(i))) { eq.setSelectedIndex(i); return; }
+            try {
+                Db.exec("INSERT INTO equipment_types(name) VALUES('" + Db.esc(val) + "')");
+                eq.insertItemAt(val, 0);
+                eq.setSelectedIndex(0);
+            } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        });
+        addEquipBtn.setToolTipText("Добавить тип оборудования в справочник");
+        addEquipBtn.setMargin(new java.awt.Insets(2, 6, 2, 6));
+
+        JComboBox<String> prob = new JComboBox<>();
+        prob.setEditable(true);
+        prob.setFont(Theme.font(14));
+        try (Statement st = Db.get().createStatement();
+             ResultSet rs = st.executeQuery("SELECT name FROM fault_types ORDER BY name")) {
+            while (rs.next()) prob.addItem(rs.getString(1));
+        } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        JButton addFaultBtn = Theme.on("＋", Theme.BLUE, e -> {
+            String val = (String) prob.getSelectedItem();
+            if (val == null || val.trim().isEmpty()) { Warn.show("Введите тип неисправности"); return; }
+            val = val.trim();
+            for (int i = 0; i < prob.getItemCount(); i++)
+                if (val.equalsIgnoreCase(prob.getItemAt(i))) { prob.setSelectedIndex(i); return; }
+            try {
+                Db.exec("INSERT INTO fault_types(name) VALUES('" + Db.esc(val) + "')");
+                prob.insertItemAt(val, 0);
+                prob.setSelectedIndex(0);
+            } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        });
+        addFaultBtn.setToolTipText("Добавить тип неисправности в справочник");
+        addFaultBtn.setMargin(new java.awt.Insets(2, 6, 2, 6));
+
+        JComboBox<String> eng = new JComboBox<>();
+        eng.setFont(Theme.font(14));
+        try (Statement st = Db.get().createStatement();
+             ResultSet rs = st.executeQuery("SELECT name FROM users WHERE role IN ('ENGINEER','ADMIN')"
+                 + " AND (blocked_until IS NULL OR blocked_until = '' OR blocked_until < date('now'))"
+                 + " ORDER BY name")) {
+            while (rs.next()) eng.addItem(rs.getString(1));
+        } catch (Exception ex) { Warn.show(ex.getMessage()); }
+
+        JTextField mgr = new JTextField(18),
             wait = new JTextField(10), price = new JTextField(10), notes = new JTextField(30),
-            serial = new JTextField(24), completeness = new JTextField(30), warranty = new JTextField(6);
+            serial = new JTextField(24), completeness = new JTextField(30), warranty = new JTextField(6),
+            prepay = new JTextField(10);
         wait.setToolTipText("Примерный срок ожидания запчасти, дд.мм.гггг");
         warranty.setToolTipText("Гарантия на выполненный ремонт, дней");
+        prepay.setToolTipText("Сумма предоплаты, руб.");
+        JButton calBtn = Theme.on("📅", Theme.BLUE, e -> {
+            String picked = pickDate(d, wait.getText());
+            if (picked != null) wait.setText(picked);
+        });
+        calBtn.setToolTipText("Выбрать дату из календаря");
+        calBtn.setMargin(new java.awt.Insets(2, 6, 2, 6));
         JComboBox<String> status = new JComboBox<>(RepairsPanel.STATUS_RU);
         JComboBox<String> sla = new JComboBox<>(RepairsPanel.SLA_RU);
+        JComboBox<String> paymentMethod = new JComboBox<>(new String[] {
+            "", "Наличные деньги", "По QR коду", "На расчетный счет"
+        });
         status.setFont(Theme.font(14)); sla.setFont(Theme.font(14));
+        paymentMethod.setFont(Theme.font(14));
 
         // Версия записи при открытии формы — по ней видно, что заявку успел изменить другой сотрудник.
         final long[] base = new long[1];
@@ -61,6 +144,7 @@ public final class RepairForm {
             { "completeness", "Комплектность", completeness }, { "problem", "Неисправность", prob },
             { "manager", "Менеджер приёма", mgr }, { "engineer", "Инженер", eng },
             { "wait_until", "Ожидание ЗЧ", wait }, { "price", "Цена, руб.", price },
+            { "payment_method", "Способ оплаты", paymentMethod }, { "prepay", "Предоплата", prepay },
             { "notes", "Примечание", notes }, { "warranty_days", "Гарантия, дн.", warranty },
             { "status", "Статус", status }, { "sla", "Service Level", sla } };
 
@@ -68,17 +152,35 @@ public final class RepairForm {
         waitWarn.setVisible(false);
 
         int y = 0;
-        add(p, g, y++, "Заказчик:", customer);
-        add(p, g, y++, "Оборудование:", eq);
+        JPanel custRow = new JPanel(new java.awt.BorderLayout(4, 0));
+        custRow.setOpaque(false);
+        custRow.add(customer, java.awt.BorderLayout.CENTER);
+        custRow.add(addCustBtn, java.awt.BorderLayout.EAST);
+        add(p, g, y++, "Заказчик:", custRow);
+        JPanel eqRow = new JPanel(new java.awt.BorderLayout(4, 0));
+        eqRow.setOpaque(false);
+        eqRow.add(eq, java.awt.BorderLayout.CENTER);
+        eqRow.add(addEquipBtn, java.awt.BorderLayout.EAST);
+        add(p, g, y++, "Оборудование:", eqRow);
         add(p, g, y++, "Серийный/инвентарный №:", serial);
         add(p, g, y++, "Комплектность (что принято):", completeness);
-        add(p, g, y++, "Неисправность:", prob);
+        JPanel probRow = new JPanel(new java.awt.BorderLayout(4, 0));
+        probRow.setOpaque(false);
+        probRow.add(prob, java.awt.BorderLayout.CENTER);
+        probRow.add(addFaultBtn, java.awt.BorderLayout.EAST);
+        add(p, g, y++, "Неисправность:", probRow);
         add(p, g, y++, "Менеджер приёма:", mgr);
         add(p, g, y++, "Статус:", status);
         add(p, g, y++, "Service Level:", sla);
-        add(p, g, y++, "Ожидание запчасти до:", wait);
+        JPanel waitRow = new JPanel(new java.awt.BorderLayout(4, 0));
+        waitRow.setOpaque(false);
+        waitRow.add(wait, java.awt.BorderLayout.CENTER);
+        waitRow.add(calBtn, java.awt.BorderLayout.EAST);
+        add(p, g, y++, "Ожидание запчасти до:", waitRow);
         add(p, g, y++, "Инженер:", eng);
         add(p, g, y++, "Цена ремонта, руб.:", price);
+        add(p, g, y++, "Способ оплаты:", paymentMethod);
+        add(p, g, y++, "Сумма предоплаты, руб.:", prepay);
         add(p, g, y++, "Гарантия на ремонт, дней:", warranty);
         add(p, g, y++, "Примечание:", notes);
         g.gridx = 1; g.gridy = y++; p.add(waitWarn, g);
@@ -87,16 +189,18 @@ public final class RepairForm {
             try (Statement st = Db.get().createStatement();
                  ResultSet rs = st.executeQuery("SELECT * FROM repairs WHERE id=" + id)) {
                 if (rs.next()) {
-                    eq.setText(RepairsPanel.nz(rs.getString("equipment")));
+                    eq.setSelectedItem(RepairsPanel.nz(rs.getString("equipment")));
                     serial.setText(RepairsPanel.nz(rs.getString("serial")));
                     completeness.setText(RepairsPanel.nz(rs.getString("completeness")));
                     warranty.setText(String.valueOf(rs.getInt("warranty_days")));
-                    prob.setText(RepairsPanel.nz(rs.getString("problem")));
+                    prob.setSelectedItem(RepairsPanel.nz(rs.getString("problem")));
                     mgr.setText(RepairsPanel.nz(rs.getString("manager")));
-                    eng.setText(RepairsPanel.nz(rs.getString("engineer")));
+                    eng.setSelectedItem(RepairsPanel.nz(rs.getString("engineer")));
                     wait.setText(RepairsPanel.nz(rs.getString("wait_until")));
                     notes.setText(RepairsPanel.nz(rs.getString("notes")));
                     price.setText(String.valueOf(rs.getDouble("price")));
+                    paymentMethod.setSelectedItem(RepairsPanel.nz(rs.getString("payment_method")));
+                    prepay.setText(String.valueOf(rs.getDouble("prepay")));
                     base[0] = rs.getLong("rev");
                     status.setSelectedItem(RepairsPanel.ru(rs.getString("status")));
                     sla.setSelectedItem(RepairsPanel.nz(rs.getString("sla")));
@@ -125,23 +229,28 @@ public final class RepairForm {
             long custId = customer.getSelectedItem() instanceof Entry ? ((Entry) customer.getSelectedItem()).id : 0;
             String sql = "status='" + RepairsPanel.STATUS[status.getSelectedIndex()] + "', sla='"
                 + sla.getSelectedItem() + "', customer_id=" + custId + ", equipment='"
-                + Db.esc(eq.getText()) + "', serial='" + Db.esc(serial.getText()) + "', completeness='"
+                + Db.esc(String.valueOf(eq.getSelectedItem())) + "', serial='" + Db.esc(serial.getText()) + "', completeness='"
                 + Db.esc(completeness.getText()) + "', warranty_days="
                 + (long) RepairForm.parse(warranty.getText()) + ", problem='"
-                + Db.esc(prob.getText()) + "', engineer='"
-                + Db.esc(eng.getText()) + "', manager='" + Db.esc(mgr.getText())
+                + Db.esc(String.valueOf(prob.getSelectedItem())) + "', engineer='"
+                + Db.esc(String.valueOf(eng.getSelectedItem())) + "', manager='" + Db.esc(mgr.getText())
                 + "', wait_until='" + Db.esc(wait.getText().trim())
-                + "', price=" + parse(price.getText()) + ", notes='" + Db.esc(notes.getText()) + "'";
+                + "', price=" + parse(price.getText())
+                + ", payment_method='" + Db.esc(String.valueOf(paymentMethod.getSelectedItem())) + "'"
+                + ", prepay=" + parse(prepay.getText())
+                + ", notes='" + Db.esc(notes.getText()) + "'";
             try {
                 if (id == null) {
                     Db.exec("INSERT INTO repairs(customer_id,equipment,serial,completeness,warranty_days,"
-                        + "problem,status,sla,engineer,manager,wait_until,price,notes,opened) VALUES(" + custId
-                        + ",'" + Db.esc(eq.getText()) + "','" + Db.esc(serial.getText()) + "','"
+                        + "problem,status,sla,engineer,manager,wait_until,price,payment_method,prepay,notes,opened) VALUES(" + custId
+                        + ",'" + Db.esc(String.valueOf(eq.getSelectedItem())) + "','" + Db.esc(serial.getText()) + "','"
                         + Db.esc(completeness.getText()) + "'," + (long) parse(warranty.getText()) + ",'"
-                        + Db.esc(prob.getText()) + "','" + RepairsPanel.STATUS[status.getSelectedIndex()]
-                        + "','" + sla.getSelectedItem() + "','" + Db.esc(eng.getText()) + "','"
+                        + Db.esc(String.valueOf(prob.getSelectedItem())) + "','" + RepairsPanel.STATUS[status.getSelectedIndex()]
+                        + "','" + sla.getSelectedItem() + "','" + Db.esc(String.valueOf(eng.getSelectedItem())) + "','"
                         + Db.esc(mgr.getText()) + "','"
-                        + Db.esc(wait.getText().trim()) + "'," + parse(price.getText()) + ",'"
+                        + Db.esc(wait.getText().trim()) + "'," + parse(price.getText())
+                        + ",'" + Db.esc(String.valueOf(paymentMethod.getSelectedItem())) + "',"
+                        + parse(prepay.getText()) + ",'"
                         + Db.esc(notes.getText()) + "','" + RepairsPanel.stamp() + "')");
                     try (Statement st = Db.get().createStatement();
                          ResultSet rs = st.executeQuery("SELECT MAX(id) FROM repairs")) {
@@ -272,6 +381,191 @@ public final class RepairForm {
 
     static double parse(String s) {
         try { return Double.parseDouble(s.replace(",", ".").trim()); } catch (Exception e) { return 0; }
+    }
+
+    /** Диалог выбора даты с визуальным календарём. Возвращает дату в формате дд.мм.гггг или null если отменено. */
+    private static String pickDate(java.awt.Dialog owner, String current) {
+        int day = 1, month = 1, year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR);
+        if (current != null && current.trim().length() == 10) {
+            try {
+                day = Integer.parseInt(current.substring(0, 2));
+                month = Integer.parseInt(current.substring(3, 5));
+                year = Integer.parseInt(current.substring(6, 10));
+            } catch (Exception ignored) { }
+        }
+        final int[] d = { day, month, year };
+        final JDialog dlg = new JDialog(owner, "Выбор даты", true);
+        dlg.setLayout(new java.awt.BorderLayout(6, 6));
+        
+        // Визуальный календарь
+        final JPanel calendarPanel = new JPanel(new java.awt.BorderLayout());
+        final JPanel monthNav = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER));
+        final JLabel monthLabel = new JLabel();
+        monthLabel.setFont(Theme.font(16));
+        JButton prevMonth = Theme.on("◀", Theme.BLUE, e -> {
+            d[1]--;
+            if (d[1] < 1) { d[1] = 12; d[2]--; }
+            updateCalendar(calendarPanel, d, monthLabel);
+        });
+        JButton nextMonth = Theme.on("▶", Theme.BLUE, e -> {
+            d[1]++;
+            if (d[1] > 12) { d[1] = 1; d[2]++; }
+            updateCalendar(calendarPanel, d, monthLabel);
+        });
+        monthNav.add(prevMonth);
+        monthNav.add(monthLabel);
+        monthNav.add(nextMonth);
+        calendarPanel.add(monthNav, java.awt.BorderLayout.NORTH);
+        
+        updateCalendar(calendarPanel, d, monthLabel);
+        calendarPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        dlg.add(calendarPanel, java.awt.BorderLayout.CENTER);
+        
+        // Спиннеры для точной настройки
+        JPanel spinners = new JPanel(new java.awt.GridLayout(3, 2, 4, 4));
+        spinners.setBorder(BorderFactory.createTitledBorder("Точная настройка"));
+        javax.swing.JSpinner daySpin = new javax.swing.JSpinner(
+            new javax.swing.SpinnerNumberModel(day, 1, 31, 1));
+        javax.swing.JSpinner monthSpin = new javax.swing.JSpinner(
+            new javax.swing.SpinnerNumberModel(month, 1, 12, 1));
+        javax.swing.JSpinner yearSpin = new javax.swing.JSpinner(
+            new javax.swing.SpinnerNumberModel(year, 2020, 2099, 1));
+        ((javax.swing.JComponent) daySpin.getEditor()).setFont(Theme.font(14));
+        ((javax.swing.JComponent) monthSpin.getEditor()).setFont(Theme.font(14));
+        ((javax.swing.JComponent) yearSpin.getEditor()).setFont(Theme.font(14));
+        spinners.add(new JLabel("День:"));
+        spinners.add(daySpin);
+        spinners.add(new JLabel("Месяц:"));
+        spinners.add(monthSpin);
+        spinners.add(new JLabel("Год:"));
+        spinners.add(yearSpin);
+        
+        // Синхронизация спиннеров с календарём
+        javax.swing.event.ChangeListener spinnerListener = e -> {
+            d[0] = (Integer) daySpin.getValue();
+            d[1] = (Integer) monthSpin.getValue();
+            d[2] = (Integer) yearSpin.getValue();
+            updateCalendar(calendarPanel, d, monthLabel);
+        };
+        daySpin.addChangeListener(spinnerListener);
+        monthSpin.addChangeListener(spinnerListener);
+        yearSpin.addChangeListener(spinnerListener);
+        
+        dlg.add(spinners, java.awt.BorderLayout.SOUTH);
+        
+        JPanel buttons = new JPanel();
+        buttons.add(Theme.on("Выбрать", Theme.YELLOW, e -> {
+            d[0] = (Integer) daySpin.getValue();
+            d[1] = (Integer) monthSpin.getValue();
+            d[2] = (Integer) yearSpin.getValue();
+            dlg.dispose();
+        }));
+        buttons.add(Theme.on("Отмена", Theme.GRAY_PANEL, e -> {
+            d[0] = 0;
+            dlg.dispose();
+        }));
+        
+        JPanel southContainer = new JPanel(new java.awt.BorderLayout());
+        southContainer.add(spinners, java.awt.BorderLayout.CENTER);
+        southContainer.add(buttons, java.awt.BorderLayout.SOUTH);
+        dlg.add(southContainer, java.awt.BorderLayout.SOUTH);
+        
+        dlg.pack();
+        dlg.setLocationRelativeTo(owner);
+        dlg.setVisible(true);
+        if (d[0] == 0) return null;
+        return String.format("%02d.%02d.%04d", d[0], d[1], d[2]);
+    }
+    
+    /** Обновляет визуальный календарь. */
+    private static void updateCalendar(JPanel calendarPanel, int[] d, JLabel monthLabel) {
+        String[] monthNames = { "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь" };
+        monthLabel.setText(monthNames[d[1] - 1] + " " + d[2]);
+        
+        // Удаляем старую сетку календаря
+        if (calendarPanel.getComponentCount() > 1) {
+            calendarPanel.remove(1);
+        }
+        
+        // Создаём новую сетку
+        JPanel grid = new JPanel(new java.awt.GridLayout(0, 7, 2, 2));
+        grid.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        
+        // Заголовки дней недели
+        String[] dayNames = { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" };
+        for (String dayName : dayNames) {
+            JLabel lbl = new JLabel(dayName, javax.swing.SwingConstants.CENTER);
+            lbl.setFont(Theme.font(12));
+            lbl.setForeground(java.awt.Color.GRAY);
+            grid.add(lbl);
+        }
+        
+        // Вычисляем первый день месяца
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(d[2], d[1] - 1, 1);
+        int firstDayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK);
+        // Преобразуем: Пн=1, Вт=2, ..., Вс=7 (в Java: Вс=1, Пн=2, ..., Сб=7)
+        firstDayOfWeek = firstDayOfWeek == 1 ? 7 : firstDayOfWeek - 1;
+        
+        // Количество дней в месяце
+        int daysInMonth = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH);
+        
+        // Пустые ячейки до первого дня
+        for (int i = 1; i < firstDayOfWeek; i++) {
+            grid.add(new JLabel(""));
+        }
+        
+        // Дни месяца
+        for (int day = 1; day <= daysInMonth; day++) {
+            final int dayNum = day;
+            JButton dayBtn = new JButton(String.valueOf(day));
+            dayBtn.setFont(Theme.font(12));
+            dayBtn.setMargin(new java.awt.Insets(4, 4, 4, 4));
+            
+            // Подсветка выбранного дня
+            if (day == d[0]) {
+                dayBtn.setBackground(Theme.YELLOW);
+                dayBtn.setForeground(java.awt.Color.BLACK);
+            }
+            
+            // Подсветка выходных
+            int dayOfWeek = (firstDayOfWeek + day - 2) % 7 + 1;
+            if (dayOfWeek >= 6) {
+                dayBtn.setForeground(java.awt.Color.RED);
+            }
+            
+            dayBtn.addActionListener(e -> {
+                d[0] = dayNum;
+                // Обновляем календарь
+                java.awt.Container parent = ((JButton)e.getSource()).getParent();
+                JPanel calGrid = (JPanel) parent;
+                for (java.awt.Component comp : calGrid.getComponents()) {
+                    if (comp instanceof JButton) {
+                        JButton btn = (JButton) comp;
+                        if (btn.getText().equals(String.valueOf(dayNum))) {
+                            btn.setBackground(Theme.YELLOW);
+                            btn.setForeground(java.awt.Color.BLACK);
+                        } else {
+                            btn.setBackground(javax.swing.UIManager.getColor("Button.background"));
+                            btn.setForeground(java.awt.Color.BLACK);
+                            // Восстанавливаем цвет выходных
+                            int idx = java.util.Arrays.asList(calGrid.getComponents()).indexOf(btn);
+                            if (idx >= 7) { // Пропускаем заголовки
+                                int dow = (idx - 7) % 7;
+                                if (dow >= 5) btn.setForeground(java.awt.Color.RED);
+                            }
+                        }
+                    }
+                }
+            });
+            
+            grid.add(dayBtn);
+        }
+        
+        calendarPanel.add(grid, java.awt.BorderLayout.CENTER);
+        calendarPanel.revalidate();
+        calendarPanel.repaint();
     }
 
     private static class Entry {

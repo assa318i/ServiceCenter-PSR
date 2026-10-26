@@ -89,6 +89,48 @@ public class RepairsPanel extends JPanel {
         add(north, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);
         Theme.styleTable(table);
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mousePressed(java.awt.event.MouseEvent e) { showPopup(e); }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) { showPopup(e); }
+            private void showPopup(java.awt.event.MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                int row = table.rowAtPoint(e.getPoint());
+                if (row >= 0) table.setRowSelectionInterval(row, row);
+                Long id = selectedId();
+                javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+                javax.swing.JMenuItem edit = new javax.swing.JMenuItem("Изменить заявку");
+                edit.addActionListener(ev -> RepairForm.show(app, id, RepairsPanel.this));
+                menu.add(edit);
+                javax.swing.JMenuItem status = new javax.swing.JMenuItem("Изменить статус");
+                status.addActionListener(ev -> changeStatus());
+                menu.add(status);
+                javax.swing.JMenuItem sla = new javax.swing.JMenuItem("Service Level");
+                sla.addActionListener(ev -> setSla());
+                menu.add(sla);
+                menu.addSeparator();
+                javax.swing.JMenuItem receipt = new javax.swing.JMenuItem("Печать квитанции");
+                receipt.addActionListener(ev -> printReceipt());
+                menu.add(receipt);
+                javax.swing.JMenuItem bill = new javax.swing.JMenuItem("Печать чека");
+                bill.addActionListener(ev -> printBill());
+                menu.add(bill);
+                javax.swing.JMenuItem label = new javax.swing.JMenuItem("Печать этикетки");
+                label.addActionListener(ev -> printLabel());
+                menu.add(label);
+                menu.addSeparator();
+                javax.swing.JMenuItem tasks = new javax.swing.JMenuItem("Дела по заявке");
+                tasks.addActionListener(ev -> Tasks.show(RepairsPanel.this, id));
+                menu.add(tasks);
+                javax.swing.JMenuItem stream = new javax.swing.JMenuItem("Лента заявки");
+                stream.addActionListener(ev -> showStream());
+                menu.add(stream);
+                menu.addSeparator();
+                javax.swing.JMenuItem del = new javax.swing.JMenuItem("Удалить заявку");
+                del.addActionListener(ev -> deleteRepair());
+                menu.add(del);
+                menu.show(table, e.getX(), e.getY());
+            }
+        });
         load();
     }
 
@@ -133,6 +175,24 @@ public class RepairsPanel extends JPanel {
         Long id = selectedId();
         if (id == null) { Warn.show("Выберите заявку"); return; }
         Stream.show(this, id);
+    }
+
+    void deleteRepair() {
+        Long id = selectedId();
+        if (id == null) { Warn.show("Выберите заявку"); return; }
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Удалить заявку №" + id + "?\nЭто действие необратимо.",
+            "Удаление заявки", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) return;
+        try {
+            Db.exec("DELETE FROM repairs WHERE id=" + id);
+            Db.exec("DELETE FROM repair_history WHERE repair_id=" + id);
+            Db.exec("DELETE FROM attachments WHERE repair_id=" + id);
+            Db.exec("DELETE FROM tasks WHERE repair_id=" + id);
+            Db.exec("DELETE FROM watch WHERE repair_id=" + id);
+            Stream.log(id, "Заявка удалена");
+        } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        load();
     }
 
     void printReceipt() {

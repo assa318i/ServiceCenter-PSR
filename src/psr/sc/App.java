@@ -18,6 +18,7 @@ import javax.swing.SwingUtilities;
 
 /** Главное окно: шапка с логотипом, панель просрочек, навигация, панели модулей. */
 public class App extends JFrame {
+    public static final String VERSION = "1.0.6";
     public static final String REPAIRS = "repairs", CUSTOMERS = "customers",
         WAREHOUSE = "warehouse", REPORTS = "reports", FINANCE = "finance";
 
@@ -225,7 +226,9 @@ public class App extends JFrame {
             try {
                 Session.login(null);
             } catch (Exception e) { System.exit(0); }
-            new App().setVisible(true);
+            App app = new App();
+            app.setVisible(true);
+            AutoUpdater.checkAndPrompt();
         });
     }
 }

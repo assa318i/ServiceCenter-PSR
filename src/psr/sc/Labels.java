@@ -91,7 +91,7 @@ public final class Labels {
         root.add(tools, BorderLayout.CENTER);
         root.add(new JScrollPane(table), BorderLayout.SOUTH);
         d.setContentPane(root);
-        d.setSize(860, 560);
+        d.setSize(900, 600);
         d.setLocationRelativeTo(owner);
         d.setVisible(true);
     }

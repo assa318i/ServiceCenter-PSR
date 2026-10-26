@@ -206,6 +206,7 @@ public final class Documents {
         b.add(Theme.on("Закрыть", Theme.GRAY_PANEL, e -> d.dispose()));
         root.add(b, BorderLayout.SOUTH);
         d.setContentPane(root);
+        d.setSize(600, 500);
         d.setLocationRelativeTo(owner);
         d.setVisible(true);
     }
@@ -238,7 +239,7 @@ public final class Documents {
         b.add(Theme.on("Закрыть", Theme.GRAY_PANEL, e -> d.dispose()));
         root.add(b, BorderLayout.SOUTH);
         d.setContentPane(root);
-        d.setSize(860, 700);
+        d.setSize(900, 750);
         d.setLocationRelativeTo(owner);
         d.setVisible(true);
     }

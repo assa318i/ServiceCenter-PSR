@@ -66,6 +66,8 @@ public final class Db {
             addColumn(st, "repairs", "warranty_days INTEGER DEFAULT 0");
             addColumn(st, "repairs", "manager TEXT DEFAULT ''");
             addColumn(st, "repairs", "agreed TEXT DEFAULT ''");
+            addColumn(st, "repairs", "payment_method TEXT DEFAULT ''");
+            addColumn(st, "repairs", "prepay REAL DEFAULT 0");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS cart_parts(id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "article TEXT DEFAULT '', name TEXT DEFAULT '', grams_std REAL DEFAULT 0,"
                 + "toner_g REAL DEFAULT 0, qty_refill REAL DEFAULT 0, qty_store REAL DEFAULT 0,"
@@ -93,6 +95,10 @@ public final class Db {
             addColumn(st, "repair_history", "kind TEXT DEFAULT 'UPDATE'");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS watch(id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "repair_id INTEGER, who TEXT, seen_id INTEGER DEFAULT 0)");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS fault_types(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "name TEXT UNIQUE)");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS equipment_types(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "name TEXT UNIQUE)");
         }
     }
 

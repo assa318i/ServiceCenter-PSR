@@ -9,6 +9,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -43,6 +44,7 @@ public class CustomersPanel extends JPanel {
         tools.add(sort);
         tools.add(Theme.on("Новый заказчик", Theme.YELLOW, e -> open(null)));
         tools.add(Theme.on("Открыть карточку", Theme.BLUE, e -> openSelected()));
+        tools.add(Theme.on("Удалить", Theme.BRIGHT_RED, e -> deleteCustomer()));
         tools.add(Theme.on("Импорт из файла", Theme.YELLOW, e -> CustomerImport.dialog(this)));
         tools.add(Theme.on("Обновить", Theme.GRAY_PANEL, e -> load()));
         if (Session.isAdmin())
@@ -59,6 +61,26 @@ public class CustomersPanel extends JPanel {
         table.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (e.getClickCount() == 2) openSelected();
+                if (e.isPopupTrigger()) showPopup(e);
+            }
+            @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                if (e.isPopupTrigger()) showPopup(e);
+            }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (e.isPopupTrigger()) showPopup(e);
+            }
+            private void showPopup(java.awt.event.MouseEvent e) {
+                int row = table.rowAtPoint(e.getPoint());
+                if (row >= 0) table.setRowSelectionInterval(row, row);
+                Long id = selectedId();
+                javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+                javax.swing.JMenuItem open = new javax.swing.JMenuItem("Открыть карточку");
+                open.addActionListener(ev -> openSelected());
+                menu.add(open);
+                javax.swing.JMenuItem del = new javax.swing.JMenuItem("Удалить заказчика");
+                del.addActionListener(ev -> deleteCustomer());
+                menu.add(del);
+                menu.show(table, e.getX(), e.getY());
             }
         });
 
@@ -94,6 +116,24 @@ public class CustomersPanel extends JPanel {
             } catch (Exception ex) { Warn.show(ex.getMessage()); return; }
         }
         new CustomerCard(app, id, this).setVisible(true);
+    }
+
+    private void deleteCustomer() {
+        Long id = selectedId();
+        if (id == null) { Warn.show("Выберите заказчика"); return; }
+        if (!Session.isAdmin()) { Warn.show("Удаление заказчиков — только у администратора"); return; }
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Удалить заказчика №" + id + "?\nВсе связанные заявки останутся, но без заказчика.\n"
+            + "Это действие необратимо.",
+            "Удаление заказчика", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) return;
+        try {
+            Db.exec("UPDATE repairs SET customer_id=NULL WHERE customer_id=" + id);
+            Db.exec("DELETE FROM customers WHERE id=" + id);
+            Db.exec("DELETE FROM attachments WHERE customer_id=" + id);
+            Db.exec("DELETE FROM payments WHERE customer_id=" + id);
+        } catch (Exception ex) { Warn.show(ex.getMessage()); }
+        load();
     }
 
     void load() {
